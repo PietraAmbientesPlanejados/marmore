@@ -2983,17 +2983,25 @@ const PreviewAcabamentos = ({ peca, mostrarSempre = false, mini = false }) => {
     
     // Ajustar tamanho do canvas baseado em mini ou normal
     const canvasWidth = mini ? 120 : 260;
-    const canvasHeight = mini ? 90 : 180;
+    const canvasHeight = mini ? 90 : 200;
     
-    // Escala para caber no canvas
-    const escalaX = (canvasWidth - (mini ? 20 : 40)) / largura;
-    const escalaY = (canvasHeight - (mini ? 20 : 40)) / altura;
+    // Escala para caber no canvas, reservando margem para cotas
+    const margemTop = mini ? 10 : 28;   // espaço para cota horizontal
+    const margemLeft = mini ? 10 : 30;  // espaço para cota vertical
+    const margemRight = mini ? 10 : 12;
+    const margemBottom = mini ? 10 : 12;
+    
+    const areaW = canvasWidth - margemLeft - margemRight;
+    const areaH = canvasHeight - margemTop - margemBottom;
+    
+    const escalaX = areaW / largura;
+    const escalaY = areaH / altura;
     const escala = Math.min(escalaX, escalaY, mini ? 0.5 : 0.55);
     
     const w = largura * escala;
     const h = altura * escala;
-    const offsetX = (canvasWidth - w) / 2;
-    const offsetY = (canvasHeight - h) / 2;
+    const offsetX = margemLeft + (areaW - w) / 2;
+    const offsetY = margemTop + (areaH - h) / 2;
     
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
