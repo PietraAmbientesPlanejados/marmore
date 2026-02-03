@@ -136,8 +136,242 @@ const SistemaOrcamentoMarmore = () => {
   };
 
   // Função para imprimir o plano de corte (compatível com artifacts)
-  const imprimirPlanoCorte = () => {
-    alert('🖨️ Função de impressão em desenvolvimento.\n\nEm breve você poderá gerar o PDF do plano de corte!');
+  const imprimirPlanoCorte = async () => {
+    // Carregar jsPDF se ainda não carregado
+    if (!window.jspdf) {
+      return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        script.onload = () => { gerarPDFPlanoCorte(); resolve(); };
+        script.onerror = () => { alert('❌ Erro ao carregar biblioteca PDF.'); resolve(); };
+        document.head.appendChild(script);
+      });
+    }
+    gerarPDFPlanoCorte();
+  };
+
+  const gerarPDFPlanoCorte = () => {
+    const { jsPDF } = window.jspdf;
+    if (!orcamentoAtual || !orcamentoAtual.chapas || orcamentoAtual.chapas.length === 0) {
+      alert('⚠️ Nenhuma chapa no plano de corte.');
+      return;
+    }
+
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    // A4 landscape: 297 x 210 mm
+    const pageW = 297;
+    const pageH = 210;
+    const margin = 15;
+    const headerH = 22;
+
+    orcamentoAtual.chapas.forEach((chapa, idx) => {
+      if (idx > 0) pdf.addPage();
+
+      // ---------- HEADER ----------
+      // Fundo do header
+      pdf.setFillColor(30, 41, 59); // slate-800
+      pdf.rect(0, 0, pageW, headerH, 'F');
+
+      // Título
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('PLANO DE CORTE', margin, 10);
+
+      // Nome do orçamento
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Orçamento: ' + orcamentoAtual.nome, margin, 17);
+
+      // Chapa info à direita
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(11);
+      pdf.text('Chapa ' + (idx + 1) + ' / ' + orcamentoAtual.chapas.length, pageW - margin - 45, 10);
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(chapa.material.nome, pageW - margin - 45, 17);
+
+      // ---------- ÁREA DE DESENHO ----------
+      const areaTop = headerH + 8;
+      const areaLeft = margin + 35; // margem esquerda maior para cotas
+      const areaRight = pageW - margin;
+      const areaBottom = pageH - margin - 18; // margem baixo para legenda
+      const areaW = areaRight - areaLeft;
+      const areaH = areaBottom - areaTop;
+
+      // Calcular escala para caber a chapa na área
+      const chapaW = chapa.material.comprimento;
+      const chapaH = chapa.material.altura;
+      const escalaX = areaW / chapaW;
+      const escalaY = areaH / chapaH;
+      const escala = Math.min(escalaX, escalaY) * 0.95;
+
+      const desenhoW = chapaW * escala;
+      const desenhoH = chapaH * escala;
+      // Centralizar
+      const desenhoX = areaLeft + (areaW - desenhoW) / 2;
+      const desenhoY = areaTop + (areaH - desenhoH) / 2;
+
+      // ---------- COTAS DA CHAPA ----------
+      pdf.setTextColor(80, 80, 80);
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+
+      // Cota horizontal (cima)
+      const cotaTopY = desenhoY - 5;
+      pdf.setDrawColor(100, 100, 100);
+      pdf.setLineWidth(0.3);
+      // Linha horizontal
+      pdf.line(desenhoX, cotaTopY, desenhoX + desenhoW, cotaTopY);
+      // Traços terminais
+      pdf.line(desenhoX, cotaTopY - 2, desenhoX, cotaTopY + 2);
+      pdf.line(desenhoX + desenhoW, cotaTopY - 2, desenhoX + desenhoW, cotaTopY + 2);
+      // Texto
+      pdf.setTextColor(30, 41, 59);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(chapaW + ' mm', desenhoX + desenhoW / 2, cotaTopY - 2, { align: 'center' });
+
+      // Cota vertical (esquerda)
+      const cotaLeftX = desenhoX - 5;
+      pdf.setDrawColor(100, 100, 100);
+      pdf.setFont('helvetica', 'normal');
+      pdf.line(cotaLeftX, desenhoY, cotaLeftX, desenhoY + desenhoH);
+      pdf.line(cotaLeftX - 2, desenhoY, cotaLeftX + 2, desenhoY);
+      pdf.line(cotaLeftX - 2, desenhoY + desenhoH, cotaLeftX + 2, desenhoY + desenhoH);
+      // Texto vertical
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(chapaH + ' mm', cotaLeftX - 3, desenhoY + desenhoH / 2, { angle: 90, align: 'center' });
+
+      // ---------- RETÂNGULO DA CHAPA ----------
+      pdf.setFillColor(249, 250, 251); // fundo cinza claro
+      pdf.setDrawColor(55, 65, 81);
+      pdf.setLineWidth(1.2);
+      pdf.roundedRect(desenhoX, desenhoY, desenhoW, desenhoH, 1, 1, 'FD');
+
+      // Grid leve na chapa
+      pdf.setDrawColor(220, 220, 220);
+      pdf.setLineWidth(0.2);
+      const gridSpacing = 500 * escala;
+      for (let i = gridSpacing; i < desenhoW; i += gridSpacing) {
+        pdf.line(desenhoX + i, desenhoY, desenhoX + i, desenhoY + desenhoH);
+      }
+      for (let i = gridSpacing; i < desenhoH; i += gridSpacing) {
+        pdf.line(desenhoX, desenhoY + i, desenhoX + desenhoW, desenhoY + i);
+      }
+
+      // ---------- PEÇAS ----------
+      const cores = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899','#14b8a6'];
+      const legendaItens = [];
+
+      chapa.pecas.forEach((peca, pIdx) => {
+        const px = desenhoX + peca.posX * escala;
+        const py = desenhoY + peca.posY * escala;
+        const pw = (peca.rotacao === 90 ? peca.altura : peca.comprimento) * escala;
+        const ph = (peca.rotacao === 90 ? peca.comprimento : peca.altura) * escala;
+
+        const cor = cores[pIdx % cores.length];
+        // Converter hex para RGB
+        const r = parseInt(cor.slice(1, 3), 16);
+        const g = parseInt(cor.slice(3, 5), 16);
+        const b = parseInt(cor.slice(5, 7), 16);
+
+        // Fundo da peça (com transparência via alpha)
+        pdf.setFillColor(r, g, b);
+        pdf.setDrawColor(r, g, b);
+        pdf.setLineWidth(1.5);
+
+        // Retângulo preenchido
+        pdf.rect(px, py, pw, ph, 'FD');
+
+        // Sobrepor fundo semi-transparente branco para o texto ficar legível
+        pdf.setFillColor(255, 255, 255);
+        pdf.setOpacity(0.45);
+        pdf.rect(px, py, pw, ph, 'F');
+        pdf.setOpacity(1);
+
+        // Borda colorida novamente (por cima do overlay)
+        pdf.setDrawColor(r, g, b);
+        pdf.setLineWidth(1.5);
+        pdf.rect(px, py, pw, ph, 'D');
+
+        // Número da peça (grande, no centro)
+        pdf.setFillColor(r, g, b);
+        pdf.setTextColor(r, g, b);
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(String(pIdx + 1), px + pw / 2, py + ph / 2 - 1, { align: 'center' });
+
+        // Dimensões abaixo do número
+        pdf.setFontSize(6.5);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(40, 40, 40);
+        const dim = peca.rotacao === 90 ? peca.altura + 'x' + peca.comprimento : peca.comprimento + 'x' + peca.altura;
+        pdf.text(dim, px + pw / 2, py + ph / 2 + 5, { align: 'center' });
+
+        // Cotas da peça (pequenas, nas bordas)
+        pdf.setTextColor(r, g, b);
+        pdf.setFontSize(5.5);
+        pdf.setFont('helvetica', 'bold');
+        // Cota topo
+        const pecaCompExib = peca.rotacao === 90 ? peca.altura : peca.comprimento;
+        const pecaAltExib = peca.rotacao === 90 ? peca.comprimento : peca.altura;
+        pdf.text(pecaCompExib + '', px + pw / 2, py - 1.5, { align: 'center' });
+        // Cota esquerda (vertical)
+        pdf.text(pecaAltExib + '', px - 1.5, py + ph / 2, { angle: 90, align: 'center' });
+
+        // Espacamento (linha tracejada ao redor)
+        pdf.setDrawColor(200, 180, 50);
+        pdf.setLineWidth(0.4);
+        const esp = 4 * escala;
+        pdf.setLineDashPattern({ dash: 1.5, gap: 1.5 });
+        pdf.rect(px - esp, py - esp, pw + esp * 2, ph + esp * 2, 'D');
+        pdf.setLineDashPattern({});
+
+        // Guardar para legenda
+        const nome = peca.nome || ('Peça ' + (pIdx + 1));
+        legendaItens.push({ numero: pIdx + 1, nome, cor, dim: pecaCompExib + 'x' + pecaAltExib, rotado: peca.rotacao === 90 });
+      });
+
+      // ---------- LEGENDA (baixo) ----------
+      const legendaY = areaBottom + 4;
+      pdf.setFontSize(7);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(30, 41, 59);
+      pdf.text('LEGENDA:', margin, legendaY);
+
+      let legendaX = margin + 22;
+      legendaItens.forEach((item, i) => {
+        // Se não cabe na linha, quebrar
+        if (legendaX > pageW - 55) {
+          legendaX = margin + 22;
+          // legendaY += 5; // não muda pois é const, mas com 1 linha já cabe para maioria
+        }
+        const r = parseInt(item.cor.slice(1, 3), 16);
+        const g = parseInt(item.cor.slice(3, 5), 16);
+        const b = parseInt(item.cor.slice(5, 7), 16);
+
+        pdf.setFillColor(r, g, b);
+        pdf.rect(legendaX, legendaY - 3.5, 4, 4, 'F');
+
+        pdf.setTextColor(30, 41, 59);
+        pdf.setFont('helvetica', 'normal');
+        const rot = item.rotado ? ' R' : '';
+        pdf.text(item.numero + '. ' + item.nome + ' (' + item.dim + rot + ')', legendaX + 5.5, legendaY);
+
+        legendaX += pdf.getStringWidth(item.numero + '. ' + item.nome + ' (' + item.dim + rot + ')') + 12;
+      });
+
+      // ---------- RODAPÉ ----------
+      pdf.setTextColor(150, 150, 150);
+      pdf.setFontSize(6);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Gerado pelo Sistema Pietra  |  ' + new Date().toLocaleDateString('pt-BR'), pageW / 2, pageH - 4, { align: 'center' });
+    });
+
+    // Salvar
+    const nome = orcamentoAtual.nome.replace(/[^a-z0-9]/gi, '_');
+    pdf.save('PlanoCorte_' + nome + '_' + new Date().toISOString().split('T')[0] + '.pdf');
+    alert('✅ PDF do Plano de Corte gerado!\n' + orcamentoAtual.chapas.length + ' chapa(s)');
   };
 
   // Criar novo orçamento
@@ -2426,7 +2660,7 @@ const AmbienteCard = ({ ambiente, materiais, onAdicionarPeca, onExcluirPeca, onV
               
               {/* Preview Sempre Visível */}
               {novaPeca.comprimento && novaPeca.altura && (
-                <div className="mb-3">
+                <div className="mb-3 max-w-xs">
                   <PreviewAcabamentos peca={novaPeca} />
                 </div>
               )}
@@ -3185,10 +3419,11 @@ const PreviewAcabamentos = ({ peca, mostrarSempre = false, mini = false }) => {
   };
   
   return (
-    <div className={`${mini ? 'border border-gray-300 rounded' : 'border-2 border-gray-300 rounded-lg shadow-md'} bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden`}>
+    <div className={`${mini ? 'border border-gray-300 rounded' : 'border-2 border-gray-300 rounded-lg shadow-md'} bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden`} style={mini ? {} : { maxWidth: '260px' }}>
       <canvas 
         ref={canvasRef} 
         className="w-full"
+        style={mini ? {} : { maxWidth: '260px' }}
       />
       {!mostrarSempre && !mini && (
         <div className="p-3 border-t-2 border-gray-200 bg-white">
