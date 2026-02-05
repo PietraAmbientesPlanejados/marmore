@@ -336,11 +336,15 @@ const SistemaOrcamentoMarmore = () => {
 
       let legendaX = margin + 22;
       legendaItens.forEach((item, i) => {
+        const rot = item.rotado ? ' R' : '';
+        const textoLegenda = item.numero + '. ' + item.nome + ' (' + item.dim + rot + ')';
+        const larguraEstimada = textoLegenda.length * 1.5; // Estimativa: 1.5mm por caractere
+        
         // Se não cabe na linha, quebrar
-        if (legendaX > pageW - 55) {
+        if (legendaX + larguraEstimada > pageW - margin) {
           legendaX = margin + 22;
-          // legendaY += 5; // não muda pois é const, mas com 1 linha já cabe para maioria
         }
+        
         const r = parseInt(item.cor.slice(1, 3), 16);
         const g = parseInt(item.cor.slice(3, 5), 16);
         const b = parseInt(item.cor.slice(5, 7), 16);
@@ -350,10 +354,9 @@ const SistemaOrcamentoMarmore = () => {
 
         pdf.setTextColor(30, 41, 59);
         pdf.setFont('helvetica', 'normal');
-        const rot = item.rotado ? ' R' : '';
-        pdf.text(item.numero + '. ' + item.nome + ' (' + item.dim + rot + ')', legendaX + 5.5, legendaY);
+        pdf.text(textoLegenda, legendaX + 5.5, legendaY);
 
-        legendaX += pdf.getStringWidth(item.numero + '. ' + item.nome + ' (' + item.dim + rot + ')') + 12;
+        legendaX += larguraEstimada + 12;
       });
 
       // ---------- RODAPÉ ----------
