@@ -5,79 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Sistema de Orçamento para Mármore e Granito">
   <title>Sistema de Orçamento - Mármore & Granito</title>
-  
-  <!-- React 2 -->
-  <!-- React -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  
-  <!-- Babel para JSX -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  
-  <!-- TailwindCSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- jsPDF para gerar etiquetas -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-    
-    #root {
-      min-height: 100vh;
-    }
-    
-    /* Loading spinner */
-    .loading {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      font-size: 24px;
-      color: #334155;
-    }
-    
-    /* Print styles */
-    @media print {
-      body * {
-        visibility: hidden;
-      }
-      .print-area, .print-area * {
-        visibility: visible;
-      }
-      .no-print {
-        display: none !important;
-      }
-    }
-  </style>
 </head>
 <body>
-  <div id="root">
-    <div class="loading">
-      <div style="text-align: center;">
-        <div style="font-size: 48px; margin-bottom: 16px;">⏳</div>
-        <div>Carregando Sistema de Orçamento...</div>
-      </div>
-    </div>
-  </div>
-  
-  <!-- Arquivo principal da aplicação -->
-  <script type="text/babel" src="./app.jsx"></script>
-  
-  <script>
-    // Inicializar Lucide Icons após carregar
-    document.addEventListener('DOMContentLoaded', function() {
-      if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-      }
-    });
-  </script>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>
