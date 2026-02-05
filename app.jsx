@@ -541,7 +541,7 @@ const SistemaOrcamentoMarmore = () => {
       const larg = Math.round(peca.altura);
       
       // ===== HEADER: PIETRA MÓVEIS E REVESTIMENTOS =====
-      pdf.setTextColor(8, 145, 178); // Azul ciano
+      pdf.setTextColor(0, 0, 0); // Preto
       pdf.setFontSize(14);
       pdf.setFont('helvetica', 'bold');
       pdf.text('PIETRA MÓVEIS E REVESTIMENTOS', 50, 8, { align: 'center' });
@@ -552,7 +552,7 @@ const SistemaOrcamentoMarmore = () => {
       pdf.line(5, 10, 95, 10);
       
       // Email
-      pdf.setTextColor(8, 145, 178);
+      pdf.setTextColor(0, 0, 0); // Preto
       pdf.setFontSize(8);
       pdf.setFont('helvetica', 'normal');
       pdf.text('pietramoveiserevestimentos@gmail.com', 50, 14, { align: 'center' });
@@ -567,49 +567,49 @@ const SistemaOrcamentoMarmore = () => {
       // ===== CLIENTE =====
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(8, 145, 178); // Azul
+      pdf.setTextColor(0, 0, 0); // Preto
       pdf.text('CLIENTE:', 5, 26);
       
-      pdf.setTextColor(22, 163, 74); // Verde
+      pdf.setTextColor(0, 0, 0); // Preto
       pdf.setFont('helvetica', 'normal');
       const clienteNome = orcamentoAtual.nome || 'Sem nome';
       pdf.text(clienteNome.toUpperCase(), 25, 26);
       
       // ===== AMBIENTE =====
-      pdf.setTextColor(8, 145, 178); // Azul
+      pdf.setTextColor(0, 0, 0); // Preto
       pdf.setFont('helvetica', 'bold');
       pdf.text('AMBIENTE:', 5, 32);
       
-      pdf.setTextColor(22, 163, 74); // Verde
+      pdf.setTextColor(0, 0, 0); // Preto
       pdf.setFont('helvetica', 'normal');
       const ambienteNome = peca.ambienteNome || 'Sem ambiente';
       pdf.text(ambienteNome.toUpperCase(), 25, 32);
       
       // ===== PEÇA =====
-      pdf.setTextColor(8, 145, 178); // Azul
+      pdf.setTextColor(0, 0, 0); // Preto
       pdf.setFont('helvetica', 'bold');
       pdf.text('PEÇA:', 5, 38);
       
-      pdf.setTextColor(22, 163, 74); // Verde
+      pdf.setTextColor(0, 0, 0); // Preto
       pdf.setFont('helvetica', 'normal');
       const pecaNome = peca.nome || 'Sem nome';
       pdf.text(pecaNome.toUpperCase(), 25, 38);
       
       // ===== MEDIDA =====
-      pdf.setTextColor(8, 145, 178); // Azul
+      pdf.setTextColor(0, 0, 0); // Preto
       pdf.setFont('helvetica', 'bold');
       pdf.text('MEDIDA:', 5, 44);
       
-      pdf.setTextColor(22, 163, 74); // Verde
+      pdf.setTextColor(0, 0, 0); // Preto
       pdf.setFont('helvetica', 'normal');
       pdf.text(`${comp} X ${larg} MM`, 25, 44);
       
       // ===== MATERIAL =====
-      pdf.setTextColor(8, 145, 178); // Azul
+      pdf.setTextColor(0, 0, 0); // Preto
       pdf.setFont('helvetica', 'bold');
       pdf.text('MATERIAL:', 5, 50);
       
-      pdf.setTextColor(22, 163, 74); // Verde
+      pdf.setTextColor(0, 0, 0); // Preto
       pdf.setFont('helvetica', 'normal');
       const materialNome = material?.nome || 'N/D';
       pdf.text(materialNome.toUpperCase(), 25, 50);
