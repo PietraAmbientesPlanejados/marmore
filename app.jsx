@@ -517,7 +517,9 @@ const SistemaOrcamentoMarmore = () => {
 
   const gerarPDFComJsPDF = () => {
     const { jsPDF } = window.jspdf;
-    const todasPecas = orcamentoAtual.ambientes.flatMap(amb => amb.pecas);
+    const todasPecas = orcamentoAtual.ambientes.flatMap(amb => 
+      amb.pecas.map(peca => ({ ...peca, ambienteNome: amb.nome }))
+    );
     
     // Criar PDF com páginas do tamanho da etiqueta (100x60mm)
     const pdf = new jsPDF({
@@ -535,81 +537,87 @@ const SistemaOrcamentoMarmore = () => {
       primeira = false;
       
       const material = materiais.find(m => m.id === peca.materialId);
-      const chapaNum = peca.chapaId ? String(peca.chapaId).slice(-4) : '0000';
       const comp = Math.round(peca.comprimento);
       const larg = Math.round(peca.altura);
       
-      // ===== HEADER PRETO COM NOME DO ORÇAMENTO =====
-      pdf.setFillColor(0, 0, 0);
-      pdf.rect(0, 0, 100, 8, 'F');
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(10);
+      // ===== HEADER: PIETRA MÓVEIS E REVESTIMENTOS =====
+      pdf.setTextColor(8, 145, 178); // Azul ciano
+      pdf.setFontSize(14);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('Nome do orçamento', 3, 5.5);
+      pdf.text('PIETRA MÓVEIS E REVESTIMENTOS', 50, 8, { align: 'center' });
       
-      // ===== LADO ESQUERDO: Nome da Peça + Material =====
-      pdf.setTextColor(0, 0, 0);
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(`Nome da Peça: ${peca.nome || 'Sem nome'}`, 3, 13);
-      
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Material: ${material?.nome || 'N/D'}`, 3, 18);
-      
-      // ===== LADO DIREITO: Quadrado Chapa =====
-      const boxX = 68;
-      const boxW = 29;
-      const boxH = 14;
-      
-      pdf.setFillColor(255, 255, 255);
+      // Linha horizontal
       pdf.setDrawColor(0, 0, 0);
-      pdf.setLineWidth(0.8);
-      pdf.rect(boxX, 10, boxW, boxH, 'D');
+      pdf.setLineWidth(0.3);
+      pdf.line(5, 10, 95, 10);
       
+      // Email
+      pdf.setTextColor(8, 145, 178);
       pdf.setFontSize(8);
       pdf.setFont('helvetica', 'normal');
-      pdf.text('Chapa:', boxX + 2, 15);
+      pdf.text('pietramoveiserevestimentos@gmail.com', 50, 14, { align: 'center' });
       
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(chapaNum, boxX + 2, 22);
+      // Telefone
+      pdf.setFontSize(9);
+      pdf.text('(19) 99978-0110', 50, 18, { align: 'center' });
       
-      // ===== LADO DIREITO: Dimensões em texto =====
+      // Linha horizontal
+      pdf.line(5, 20, 95, 20);
+      
+      // ===== CLIENTE =====
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(`COMP: ${comp}`, boxX + 2, 30);
-      pdf.text(`LARG: ${larg}`, boxX + 2, 36);
+      pdf.setTextColor(8, 145, 178); // Azul
+      pdf.text('CLIENTE:', 5, 26);
       
-      // ===== CENTRO: DESENHO DA PEÇA =====
-      const desenhoMaxW = 45;
-      const desenhoMaxH = 35;
-      
-      const escalaW = desenhoMaxW / peca.comprimento;
-      const escalaH = desenhoMaxH / peca.altura;
-      const escala = Math.min(escalaW, escalaH) * 0.9;
-      
-      const desenhoW = peca.comprimento * escala;
-      const desenhoH = peca.altura * escala;
-      
-      const desenhoX = 10 + (desenhoMaxW - desenhoW) / 2;
-      const desenhoY = 26 + (desenhoMaxH - desenhoH) / 2;
-      
-      // Desenhar cota horizontal
-      pdf.setFontSize(8);
-      pdf.setTextColor(0, 0, 0);
+      pdf.setTextColor(22, 163, 74); // Verde
       pdf.setFont('helvetica', 'normal');
-      const cotaX = desenhoX + desenhoW/2 - String(comp).length * 1.2;
-      pdf.text(String(comp), cotaX, desenhoY - 2);
+      const clienteNome = orcamentoAtual.nome || 'Sem nome';
+      pdf.text(clienteNome.toUpperCase(), 25, 26);
       
-      // Desenhar cota vertical
-      const cotaY = desenhoY + desenhoH/2 + 2;
-      pdf.text(String(larg), desenhoX - 7, cotaY);
+      // ===== AMBIENTE =====
+      pdf.setTextColor(8, 145, 178); // Azul
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('AMBIENTE:', 5, 32);
       
-      // Desenhar retângulo da peça
+      pdf.setTextColor(22, 163, 74); // Verde
+      pdf.setFont('helvetica', 'normal');
+      const ambienteNome = peca.ambienteNome || 'Sem ambiente';
+      pdf.text(ambienteNome.toUpperCase(), 25, 32);
+      
+      // ===== PEÇA =====
+      pdf.setTextColor(8, 145, 178); // Azul
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('PEÇA:', 5, 38);
+      
+      pdf.setTextColor(22, 163, 74); // Verde
+      pdf.setFont('helvetica', 'normal');
+      const pecaNome = peca.nome || 'Sem nome';
+      pdf.text(pecaNome.toUpperCase(), 25, 38);
+      
+      // ===== MEDIDA =====
+      pdf.setTextColor(8, 145, 178); // Azul
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('MEDIDA:', 5, 44);
+      
+      pdf.setTextColor(22, 163, 74); // Verde
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`${comp} X ${larg} MM`, 25, 44);
+      
+      // ===== MATERIAL =====
+      pdf.setTextColor(8, 145, 178); // Azul
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('MATERIAL:', 5, 50);
+      
+      pdf.setTextColor(22, 163, 74); // Verde
+      pdf.setFont('helvetica', 'normal');
+      const materialNome = material?.nome || 'N/D';
+      pdf.text(materialNome.toUpperCase(), 25, 50);
+      
+      // Linha horizontal no rodapé
       pdf.setDrawColor(0, 0, 0);
-      pdf.setLineWidth(0.8);
-      pdf.rect(desenhoX, desenhoY, desenhoW, desenhoH, 'D');
+      pdf.setLineWidth(0.3);
+      pdf.line(5, 55, 95, 55);
     });
     
     // Salvar PDF
