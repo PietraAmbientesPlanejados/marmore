@@ -14,7 +14,11 @@
       "Bash(git commit:*)",
       "Bash(for icon in \"PlusCircle\" \"Trash2\" \"Edit2\" \"Save\" \"Move\" \"Grid\" \"FileText\" \"Home\" \"Package\" \"Printer\")",
       "Bash(do echo -n \"$icon: \")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(git remote get-url:*)",
+      "Bash(git push:*)",
+      "Bash(gh run list:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }
