@@ -378,10 +378,15 @@ const SistemaOrcamentoMarmore = () => {
       }
       return amb;
     });
-    
+
     const novoOrcamento = { ...orcamentoAtual, ambientes };
     setOrcamentoAtual(novoOrcamento);
-    
+
+    // Sincronizar com a lista de orçamentos
+    setOrcamentos(prev => prev.map(orc =>
+      orc.id === orcamentoAtual.id ? novoOrcamento : orc
+    ));
+
     // Reorganizar todas as peças
     setTimeout(() => {
       organizarPecasLocalmente(novoOrcamento);
@@ -401,12 +406,17 @@ const SistemaOrcamentoMarmore = () => {
     });
     
     console.log('📋 Ambientes atualizados:', ambientes);
-    
+
     const novoOrcamento = { ...orcamentoAtual, ambientes };
     setOrcamentoAtual(novoOrcamento);
-    
+
+    // Sincronizar com a lista de orçamentos
+    setOrcamentos(prev => prev.map(orc =>
+      orc.id === orcamentoAtual.id ? novoOrcamento : orc
+    ));
+
     console.log('💾 Orçamento atualizado, reorganizando chapas...');
-    
+
     // Reorganizar chapas após exclusão
     setTimeout(() => {
       organizarPecasLocalmente(novoOrcamento);
@@ -427,7 +437,12 @@ const SistemaOrcamentoMarmore = () => {
     
     const novoOrcamento = { ...orcamentoAtual, ambientes };
     setOrcamentoAtual(novoOrcamento);
-    
+
+    // Sincronizar com a lista de orçamentos
+    setOrcamentos(prev => prev.map(orc =>
+      orc.id === orcamentoAtual.id ? novoOrcamento : orc
+    ));
+
     // Reorganizar chapas se mudou dimensões ou material
     if (pecaEditada.comprimento !== mostrandoDetalhePeca.comprimento ||
         pecaEditada.altura !== mostrandoDetalhePeca.altura ||
@@ -436,7 +451,7 @@ const SistemaOrcamentoMarmore = () => {
         organizarPecasLocalmente(novoOrcamento);
       }, 0);
     }
-    
+
     // Fechar modal
     setMostrandoDetalhePeca(null);
     setModoEdicaoPeca(false);
@@ -585,6 +600,11 @@ const SistemaOrcamentoMarmore = () => {
   const organizarPecasLocalmente = (orcamento) => {
     const orcamentoAtualizado = organizarPecasEmChapas(orcamento, materiais);
     setOrcamentoAtual(orcamentoAtualizado);
+
+    // Sincronizar com a lista de orçamentos
+    setOrcamentos(prev => prev.map(orc =>
+      orc.id === orcamento.id ? orcamentoAtualizado : orc
+    ));
   };
 
   // Calcular totais
@@ -616,11 +636,18 @@ const SistemaOrcamentoMarmore = () => {
       pecas: todasPecas.filter(p => p.chapaId === chapa.id)
     }));
 
-    setOrcamentoAtual({
+    const orcamentoAtualizado = {
       ...orcamentoAtual,
       ambientes: ambientesAtualizados,
       chapas: chapasAtualizadas
-    });
+    };
+
+    setOrcamentoAtual(orcamentoAtualizado);
+
+    // Sincronizar com a lista de orçamentos
+    setOrcamentos(prev => prev.map(orc =>
+      orc.id === orcamentoAtual.id ? orcamentoAtualizado : orc
+    ));
   };
 
   // Mover peça dentro da mesma chapa (arraste manual)
@@ -638,11 +665,18 @@ const SistemaOrcamentoMarmore = () => {
       pecas: todasPecas.filter(p => p.chapaId === chapa.id)
     }));
 
-    setOrcamentoAtual({
+    const orcamentoAtualizado = {
       ...orcamentoAtual,
       ambientes: ambientesAtualizados,
       chapas: chapasAtualizadas
-    });
+    };
+
+    setOrcamentoAtual(orcamentoAtualizado);
+
+    // Sincronizar com a lista de orçamentos
+    setOrcamentos(prev => prev.map(orc =>
+      orc.id === orcamentoAtual.id ? orcamentoAtualizado : orc
+    ));
   };
 
   // Encontrar melhor posição disponível para a peça na chapa
@@ -742,11 +776,18 @@ const SistemaOrcamentoMarmore = () => {
       pecas: todasPecas.filter(p => p.chapaId === chapa.id)
     }));
 
-    setOrcamentoAtual({
+    const orcamentoAtualizado = {
       ...orcamentoAtual,
       ambientes: ambientesAtualizados,
       chapas: chapasAtualizadas
-    });
+    };
+
+    setOrcamentoAtual(orcamentoAtualizado);
+
+    // Sincronizar com a lista de orçamentos
+    setOrcamentos(prev => prev.map(orc =>
+      orc.id === orcamentoAtual.id ? orcamentoAtualizado : orc
+    ));
 
     alert('✅ Peça movida com sucesso!\n\n📍 Posição: X=' + Math.round(posicao.x) + 'mm, Y=' + Math.round(posicao.y) + 'mm');
   };
