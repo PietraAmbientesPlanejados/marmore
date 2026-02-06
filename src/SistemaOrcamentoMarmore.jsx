@@ -1574,7 +1574,7 @@ const SistemaOrcamentoMarmore = () => {
                   ) : (
                     orcamentos.map(orc => {
                       const totalPecas = orc.ambientes.reduce((sum, amb) => sum + amb.pecas.length, 0);
-                      const orcCalc = calcularOrcamentoSalvo(orc);
+                      const orcCalc = calcularOrcamentoComDetalhes(orc, materiais, precos);
                       return (
                         <div 
                           key={orc.id} 
