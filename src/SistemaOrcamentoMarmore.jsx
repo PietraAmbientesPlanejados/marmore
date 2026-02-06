@@ -25,7 +25,7 @@ const SistemaOrcamentoMarmore = () => {
   // Hooks customizados
   const { precos, precosSalvos, mostrarPainelPrecos, atualizarPreco, salvarPrecos, setMostrarPainelPrecos } = usePrecos();
   const { materiais, materialEditando, novoMaterial, setMateriais, setMaterialEditando, setNovoMaterial, adicionarMaterial, excluirMaterial } = useMaterials();
-  const { orcamentos, orcamentoAtual, mostrarModalNovoOrcamento, nomeNovoOrcamento, setOrcamentos, setOrcamentoAtual, setNomeNovoOrcamento, abrirModalNovoOrcamento, fecharModalNovoOrcamento, criarOrcamento, adicionarAmbiente } = useBudgets();
+  const { orcamentos, orcamentoAtual, mostrarModalNovoOrcamento, nomeNovoOrcamento, setOrcamentos, setOrcamentoAtual, setNomeNovoOrcamento, abrirModalNovoOrcamento, fecharModalNovoOrcamento, criarOrcamento, adicionarAmbiente, salvarOrcamentoAtual } = useBudgets();
 
   const [tela, setTela] = useState('lista'); // lista, novo-material, orcamento, plano-corte, editar-material
   const [mostrandoDetalhePeca, setMostrandoDetalhePeca] = useState(null);
@@ -1833,21 +1833,8 @@ const SistemaOrcamentoMarmore = () => {
                   </button>
                   <button
                     onClick={() => {
-                      // Verificar se é um orçamento existente ou novo
-                      const existe = orcamentos.find(o => o.id === orcamentoAtual.id);
-                      
-                      if (existe) {
-                        // Atualizar orçamento existente
-                        setOrcamentos(orcamentos.map(o => 
-                          o.id === orcamentoAtual.id ? orcamentoAtual : o
-                        ));
-                        alert('Orçamento atualizado com sucesso!');
-                      } else {
-                        // Adicionar novo orçamento
-                        setOrcamentos([...orcamentos, orcamentoAtual]);
-                        alert('Orçamento salvo com sucesso!');
-                      }
-                      
+                      salvarOrcamentoAtual();
+                      alert('✅ Orçamento salvo com sucesso!');
                       setTela('lista');
                       setOrcamentoAtual(null);
                     }}
