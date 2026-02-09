@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Move } from '../../constants/icons';
 
-export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa, onGirarPeca, pecaArrastando, setPecaArrastando, todasChapas }) => {
+export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa, onGirarPeca, pecaArrastando, setPecaArrastando, todasChapas, onExcluirChapa, orcamentoNome = 'Orçamento', totalChapas = 1 }) => {
   const [escala, setEscala] = useState(0.15);
   const canvasRef = useRef(null);
   const [arrastandoPeca, setArrastandoPeca] = useState(null);
@@ -137,29 +137,11 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
         });
       }
 
-      // Texto com nome e dimensões (considerando rotação)
+      // Texto com apenas o número da peça
       ctx.fillStyle = `rgb(${Math.max(0,r-40)}, ${Math.max(0,g-40)}, ${Math.max(0,b-40)})`;
-      ctx.font = 'bold 10px Arial';
+      ctx.font = 'bold 16px Arial';
       ctx.textAlign = 'center';
-
-      // Nome da peça (truncado se muito longo)
-      const nomePeca = peca.nome || `Peça #${idx + 1}`;
-      const nomeMaxLen = 15;
-      const nomeExibir = nomePeca.length > nomeMaxLen ? nomePeca.substring(0, nomeMaxLen) + '...' : nomePeca;
-      ctx.fillText(nomeExibir, x + w/2, y + h/2 - 8);
-
-      // Dimensões
-      ctx.font = '9px Arial';
-      const dimensoes = peca.rotacao === 90
-        ? `${peca.altura}x${peca.comprimento}`
-        : `${peca.comprimento}x${peca.altura}`;
-      ctx.fillText(dimensoes, x + w/2, y + h/2 + 3);
-
-      // Indicador de rotação
-      if (peca.rotacao === 90) {
-        ctx.font = 'bold 8px Arial';
-        ctx.fillText('90°', x + w/2, y + h/2 + 13);
-      }
+      ctx.fillText(`${idx + 1}`, x + w/2, y + h/2 + 5);
     });
 
     // Desenhar peça sendo arrastada
@@ -423,14 +405,38 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4">
-      <div className="flex items-center justify-between mb-4">
+    <div className="border-2 border-gray-900 rounded-lg bg-white">
+      {/* CABEÇALHO */}
+      <div className="border-b-2 border-gray-900 p-4 flex items-start justify-between">
         <div>
-          <h3 className="font-semibold text-lg">Chapa #{numero}</h3>
-          <p className="text-sm text-gray-600">{chapa.material.nome} - {chapa.pecas.length} peças</p>
+          <h2 className="text-xl font-bold text-gray-900 mb-1">PLANO DE CORTE - PIETRA AMBIENTES PLANEJADOS</h2>
+          <p className="text-sm font-semibold text-gray-700">PROJETO: {orcamentoNome.toUpperCase()}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-lg font-bold text-gray-900">CHAPA {numero} / {totalChapas}</p>
+          <p className="text-sm font-semibold text-gray-700">{chapa.material.nome.toUpperCase()}</p>
+        </div>
+      </div>
+
+      {/* CONTROLES */}
+      <div className="border-b border-gray-300 p-3 bg-gray-50 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {chapa.pecas.length === 0 && onExcluirChapa && (
+            <button
+              onClick={() => {
+                if (window.confirm('Tem certeza que deseja excluir esta chapa vazia?')) {
+                  onExcluirChapa(chapa.id);
+                }
+              }}
+              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-2"
+              title="Excluir chapa vazia"
+            >
+              🗑️ Excluir Chapa Vazia
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-sm">Zoom:</label>
+          <label className="text-sm font-medium">Zoom:</label>
           <input
             type="range"
             min="0.05"
@@ -442,17 +448,60 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
           />
         </div>
       </div>
-      <div className="overflow-auto bg-white border border-gray-300 rounded">
-        <canvas
-          ref={canvasRef}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          className="cursor-move"
-        />
+
+      {/* CONTEÚDO PRINCIPAL: LEGENDA + PLANO */}
+      <div className="flex">
+        {/* LEGENDA À ESQUERDA */}
+        <div className="w-64 border-r-2 border-gray-900 bg-gray-50">
+          <div className="p-3 border-b-2 border-gray-900 bg-white">
+            <h3 className="font-bold text-sm text-gray-900">LEGENDA</h3>
+          </div>
+          <div className="p-3 space-y-1 max-h-[600px] overflow-y-auto">
+            {chapa.pecas.map((peca, idx) => {
+              const nomePeca = peca.nome || `Peça #${idx + 1}`;
+              const nomeMaxLen = 18;
+              const nomeExibir = nomePeca.length > nomeMaxLen ? nomePeca.substring(0, nomeMaxLen) + '...' : nomePeca;
+              const dimensoes = peca.rotacao === 90
+                ? `${peca.altura} x ${peca.comprimento}`
+                : `${peca.comprimento} x ${peca.altura}`;
+
+              return (
+                <div key={peca.id} className="text-xs font-medium text-gray-800 py-0.5">
+                  <span className="font-bold">{idx + 1}</span> - {nomeExibir} {dimensoes}
+                </div>
+              );
+            })}
+            {chapa.pecas.length === 0 && (
+              <p className="text-xs text-gray-500 italic">Nenhuma peça nesta chapa</p>
+            )}
+          </div>
+        </div>
+
+        {/* PLANO DE CORTE */}
+        <div className="flex-1 p-4">
+          <div className="overflow-auto bg-white">
+            <canvas
+              ref={canvasRef}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              className="cursor-move"
+            />
+          </div>
+        </div>
       </div>
-      <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
+
+      {/* RODAPÉ */}
+      <div className="border-t-2 border-gray-900 p-2 bg-gray-50 text-center">
+        <p className="text-xs text-gray-600">
+          Gerado pelo Sistema Pietra | {new Date().toLocaleDateString('pt-BR')}
+        </p>
+      </div>
+
+      {/* ÁREA DE CONTROLES DE PEÇA */}
+      <div className="border-t border-gray-300 p-3 bg-white">
+        <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <p className="text-xs text-gray-600">
             Arraste peças livremente. Magnetismo ativo (20mm): alinha com outras peças e bordas.

@@ -12,7 +12,8 @@ export const HomePage = ({
   onNavigateOrcamento,
   onTogglePainelPrecos,
   onAtualizarPreco,
-  onSalvarPrecos
+  onSalvarPrecos,
+  onExcluirMaterial
 }) => {
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
@@ -125,20 +126,12 @@ export const HomePage = ({
                 key={material.id}
                 className="border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow bg-gradient-to-br from-white to-slate-50"
               >
-                <h3 className="font-bold text-lg mb-2 text-slate-800">{material.nome}</h3>
-                <div className="space-y-1 text-sm text-slate-600 mb-3">
-                  <p>📏 Dimensões: {material.comprimento}mm x {material.altura}mm</p>
-                  <p>💰 Custo: R$ {material.custo.toFixed(2)}/m²</p>
-                  <p>💵 Venda: R$ {material.venda.toFixed(2)}/m²</p>
-                  <p className="text-xs text-slate-500">
-                    Área da chapa: {(material.comprimento * material.altura / 1000000).toFixed(2)}m²
-                  </p>
-                </div>
+                <h3 className="font-bold text-lg mb-3 text-slate-800">{material.nome}</h3>
                 <button
-                  onClick={() => onNavigateMaterial('editar', material.id)}
-                  className="w-full bg-slate-600 hover:bg-slate-700 text-white py-2 rounded-lg text-sm font-medium transition-colors"
+                  onClick={() => onExcluirMaterial(material.id)}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg text-sm font-medium transition-colors"
                 >
-                  ✏️ Editar
+                  🗑️ Excluir
                 </button>
               </div>
             ))}

@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { formatBRL } from './utils/formatters';
 import { organizarPecasEmChapas, calcularOrcamentoComDetalhes, calcularCustosPeca } from './utils/calculations';
+import { PRECOS_PADRAO, CONFIG_CHAPA_PADRAO } from './constants/config';
 import { usePrecos } from './hooks/usePrecos';
 import { useMaterials } from './hooks/useMaterials';
 import { useBudgets } from './hooks/useBudgets';
@@ -24,8 +25,8 @@ const Printer = () => <span>🖨️</span>;
 const SistemaOrcamentoMarmore = () => {
   // Hooks customizados
   const { precos, precosSalvos, mostrarPainelPrecos, atualizarPreco, salvarPrecos, setMostrarPainelPrecos } = usePrecos();
-  const { materiais, materialEditando, novoMaterial, setMateriais, setMaterialEditando, setNovoMaterial, adicionarMaterial, excluirMaterial } = useMaterials();
-  const { orcamentos, orcamentoAtual, mostrarModalNovoOrcamento, nomeNovoOrcamento, setOrcamentos, setOrcamentoAtual, setNomeNovoOrcamento, abrirModalNovoOrcamento, fecharModalNovoOrcamento, criarOrcamento, adicionarAmbiente, salvarOrcamentoAtual } = useBudgets();
+  const { materiais, materialEditando, novoMaterial, setMateriais, setMaterialEditando, setNovoMaterial, adicionarMaterial, excluirMaterial, atualizarMaterialSimples } = useMaterials();
+  const { orcamentos, orcamentoAtual, mostrarModalNovoOrcamento, nomeNovoOrcamento, setOrcamentos, setOrcamentoAtual, setNomeNovoOrcamento, abrirModalNovoOrcamento, fecharModalNovoOrcamento, criarOrcamento, adicionarAmbiente, salvarOrcamentoAtual, atualizarPrecosOrcamento, atualizarConfigMaterial } = useBudgets();
 
   const [tela, setTela] = useState('lista'); // lista, novo-material, orcamento, plano-corte, editar-material
   const [mostrandoDetalhePeca, setMostrandoDetalhePeca] = useState(null);
@@ -33,6 +34,14 @@ const SistemaOrcamentoMarmore = () => {
   const [pecaEditada, setPecaEditada] = useState(null);
   const [pecaParaExcluir, setPecaParaExcluir] = useState(null);
   const [pecaArrastando, setPecaArrastando] = useState(null);
+  const [mostrarPainelPrecosOrcamento, setMostrarPainelPrecosOrcamento] = useState(false);
+  const [mostrarPainelMateriaisOrcamento, setMostrarPainelMateriaisOrcamento] = useState(false);
+  const [precosTemp, setPrecosTemp] = useState({});
+  const [materiaisTemp, setMateriaisTemp] = useState({});
+  const [precosSalvosOrcamento, setPrecosSalvosOrcamento] = useState(false);
+  const [materiaisSalvosOrcamento, setMateriaisSalvosOrcamento] = useState(false);
+  const [orcamentoVersion, setOrcamentoVersion] = useState(0);
+  const [menuMobileAberto, setMenuMobileAberto] = useState(false);
 
   // Carregar materiais e orçamentos ao iniciar
   useEffect(() => {
@@ -54,7 +63,39 @@ const SistemaOrcamentoMarmore = () => {
       try {
         const dados = JSON.parse(orcamentosSalvos);
         if (Array.isArray(dados)) {
-          setOrcamentos(dados);
+          // Migração automática: adicionar preços e materiais a orçamentos antigos
+          const orcamentosMigrados = dados.map(orc => {
+            const materiaisConfig = orc.materiais || {};
+
+            // Migrar materiais antigos que vêm das peças
+            if (orc.ambientes) {
+              orc.ambientes.forEach(amb => {
+                if (amb.pecas) {
+                  amb.pecas.forEach(peca => {
+                    if (peca.material && peca.material.comprimento && !materiaisConfig[peca.materialId]) {
+                      // Material antigo com dados completos - migrar para nova estrutura
+                      materiaisConfig[peca.materialId] = {
+                        comprimento: peca.material.comprimento,
+                        altura: peca.material.altura,
+                        custo: peca.material.custo || 250,
+                        venda: peca.material.venda || 333.33
+                      };
+                    } else if (peca.materialId && !materiaisConfig[peca.materialId]) {
+                      // Novo formato - adicionar config padrão se não existir
+                      materiaisConfig[peca.materialId] = { ...CONFIG_CHAPA_PADRAO };
+                    }
+                  });
+                }
+              });
+            }
+
+            return {
+              ...orc,
+              precos: orc.precos || { ...PRECOS_PADRAO },
+              materiais: materiaisConfig
+            };
+          });
+          setOrcamentos(orcamentosMigrados);
         }
       } catch (error) {
         console.error('Erro ao carregar orçamentos:', error);
@@ -76,6 +117,75 @@ const SistemaOrcamentoMarmore = () => {
     console.log('💾 Orçamentos salvos automaticamente');
   }, [orcamentos]);
 
+  // Função para atualizar material e reorganizar orçamentos
+  const atualizarMaterial = (materialId, novosDados) => {
+    // 1. Atualizar o material
+    atualizarMaterialSimples(materialId, novosDados);
+
+    // 2. Recalcular e reorganizar todos os orçamentos que usam esse material
+    const orcamentosAtualizados = orcamentos.map(orc => {
+      // Verificar se algum ambiente usa esse material
+      const usaMaterial = orc.ambientes.some(amb =>
+        amb.pecas.some(peca => peca.material?.id === materialId)
+      );
+
+      if (!usaMaterial) {
+        return orc; // Não usa esse material, mantém inalterado
+      }
+
+      // Atualizar referência do material nas peças
+      const ambientesAtualizados = orc.ambientes.map(amb => ({
+        ...amb,
+        pecas: amb.pecas.map(peca =>
+          peca.material?.id === materialId
+            ? { ...peca, material: { ...peca.material, ...novosDados } }
+            : peca
+        )
+      }));
+
+      // Reorganizar peças nas chapas com o novo tamanho de material
+      const todasAsPecas = ambientesAtualizados.flatMap(amb => amb.pecas);
+      const pecasComMaterial = todasAsPecas.filter(p => p.material?.id === materialId);
+
+      if (pecasComMaterial.length > 0) {
+        // Buscar o material atualizado
+        const materialAtualizado = { id: materialId, ...novosDados };
+        // Reorganizar chapas
+        const chapasReorganizadas = organizarPecasEmChapas(todasAsPecas, materiais);
+
+        return {
+          ...orc,
+          ambientes: ambientesAtualizados,
+          chapas: chapasReorganizadas
+        };
+      }
+
+      return { ...orc, ambientes: ambientesAtualizados };
+    });
+
+    setOrcamentos(orcamentosAtualizados);
+
+    // Se o orçamento atual foi afetado, atualizá-lo também
+    if (orcamentoAtual) {
+      const orcAtualAtualizado = orcamentosAtualizados.find(o => o.id === orcamentoAtual.id);
+      if (orcAtualAtualizado) {
+        setOrcamentoAtual(orcAtualAtualizado);
+      }
+    }
+  };
+
+  // Função auxiliar para obter configuração de um material (do orçamento ou padrão)
+  const getMaterialConfig = (materialId, orcamento = orcamentoAtual) => {
+    if (!orcamento || !materialId) return CONFIG_CHAPA_PADRAO;
+
+    const config = orcamento.materiais?.[materialId];
+    if (config && config.comprimento && config.altura) {
+      return config;
+    }
+
+    // Retornar config padrão se não existir
+    return { ...CONFIG_CHAPA_PADRAO };
+  };
 
   // Função para imprimir o plano de corte (compatível com artifacts)
   const imprimirPlanoCorte = async () => {
@@ -103,42 +213,51 @@ const SistemaOrcamentoMarmore = () => {
     // A4 landscape: 297 x 210 mm
     const pageW = 297;
     const pageH = 210;
-    const margin = 15;
+    const margin = 8;
     const headerH = 22;
 
     orcamentoAtual.chapas.forEach((chapa, idx) => {
       if (idx > 0) pdf.addPage();
 
       // ---------- HEADER ----------
-      // Fundo do header
-      pdf.setFillColor(30, 41, 59); // slate-800
-      pdf.rect(0, 0, pageW, headerH, 'F');
+      const headerY = 8;
+      const headerHeight = 20;
 
-      // Título
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(14);
+      // Retângulo do cabeçalho
+      pdf.setDrawColor(0, 0, 0);
+      pdf.setLineWidth(0.8);
+      pdf.rect(margin, headerY, pageW - 2 * margin, headerHeight, 'S');
+
+      // Linha horizontal divisória no meio
+      pdf.line(margin, headerY + headerHeight / 2, pageW - margin, headerY + headerHeight / 2);
+
+      // Título principal (parte superior)
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(18);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('PLANO DE CORTE', margin, 10);
+      pdf.text('PLANO DE CORTE - PIETRA AMBIENTES PLANEJADOS', margin + 2, headerY + 7);
 
-      // Nome do orçamento
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text('Orçamento: ' + orcamentoAtual.nome, margin, 17);
-
-      // Chapa info à direita
+      // Nome do projeto (parte inferior esquerda)
+      pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(11);
-      pdf.text('Chapa ' + (idx + 1) + ' / ' + orcamentoAtual.chapas.length, pageW - margin - 45, 10);
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(chapa.material?.nome || 'Material', pageW - margin - 45, 17);
+      pdf.text('PROJETO: ' + (orcamentoAtual.nome || 'NOME DO ORÇAMENTO').toUpperCase(), margin + 2, headerY + 17);
+
+      // Chapa info (canto superior direito)
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(18);
+      pdf.text('CHAPA ' + (idx + 1) + ' / ' + orcamentoAtual.chapas.length, pageW - margin - 2, headerY + 7, { align: 'right' });
+
+      // Material (parte inferior direita)
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text((chapa.material?.nome || 'Material').toUpperCase(), pageW - margin - 2, headerY + 17, { align: 'right' });
 
       // ---------- ÁREA DE DESENHO (com espaço para legenda à esquerda) ----------
-      const legendaW = 58; // largura da coluna de legenda
-      const areaTop = headerH + 8;
-      const areaLeft = margin + legendaW + 15; // margem para cotas da chapa
+      const legendaW = 55; // largura da coluna de legenda
+      const areaTop = headerY + headerHeight + 8;
+      const areaLeft = margin + legendaW + 12; // margem para cotas da chapa
       const areaRight = pageW - margin;
-      const areaBottom = pageH - margin - 8;
+      const areaBottom = pageH - 14; // espaço para rodapé
       const areaW = areaRight - areaLeft;
       const areaH = areaBottom - areaTop;
 
@@ -156,40 +275,43 @@ const SistemaOrcamentoMarmore = () => {
       const desenhoY = areaTop + (areaH - desenhoH) / 2;
 
       // ---------- COTAS DA CHAPA ----------
-      pdf.setTextColor(80, 80, 80);
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'normal');
+      pdf.setDrawColor(0, 0, 0);
+      pdf.setLineWidth(0.5);
 
       // Cota horizontal (cima)
-      const cotaTopY = desenhoY - 5;
-      pdf.setDrawColor(100, 100, 100);
-      pdf.setLineWidth(0.3);
-      // Linha horizontal
+      const cotaTopY = desenhoY - 7;
+      // Linha horizontal com setas
       pdf.line(desenhoX, cotaTopY, desenhoX + desenhoW, cotaTopY);
-      // Traços terminais
-      pdf.line(desenhoX, cotaTopY - 2, desenhoX, cotaTopY + 2);
-      pdf.line(desenhoX + desenhoW, cotaTopY - 2, desenhoX + desenhoW, cotaTopY + 2);
+      // Setas nas extremidades
+      pdf.line(desenhoX, cotaTopY, desenhoX + 3, cotaTopY - 1.5);
+      pdf.line(desenhoX, cotaTopY, desenhoX + 3, cotaTopY + 1.5);
+      pdf.line(desenhoX + desenhoW, cotaTopY, desenhoX + desenhoW - 3, cotaTopY - 1.5);
+      pdf.line(desenhoX + desenhoW, cotaTopY, desenhoX + desenhoW - 3, cotaTopY + 1.5);
       // Texto
-      pdf.setTextColor(30, 41, 59);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(chapaW + ' mm', desenhoX + desenhoW / 2, cotaTopY - 2, { align: 'center' });
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.text(chapaW + ' mm', desenhoX + desenhoW / 2, cotaTopY - 1.5, { align: 'center' });
 
       // Cota vertical (esquerda)
-      const cotaLeftX = desenhoX - 5;
-      pdf.setDrawColor(100, 100, 100);
-      pdf.setFont('helvetica', 'normal');
+      const cotaLeftX = desenhoX - 7;
+      // Linha vertical com setas
       pdf.line(cotaLeftX, desenhoY, cotaLeftX, desenhoY + desenhoH);
-      pdf.line(cotaLeftX - 2, desenhoY, cotaLeftX + 2, desenhoY);
-      pdf.line(cotaLeftX - 2, desenhoY + desenhoH, cotaLeftX + 2, desenhoY + desenhoH);
+      // Setas nas extremidades
+      pdf.line(cotaLeftX, desenhoY, cotaLeftX - 1.5, desenhoY + 3);
+      pdf.line(cotaLeftX, desenhoY, cotaLeftX + 1.5, desenhoY + 3);
+      pdf.line(cotaLeftX, desenhoY + desenhoH, cotaLeftX - 1.5, desenhoY + desenhoH - 3);
+      pdf.line(cotaLeftX, desenhoY + desenhoH, cotaLeftX + 1.5, desenhoY + desenhoH - 3);
       // Texto vertical
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(chapaH + ' mm', cotaLeftX - 3, desenhoY + desenhoH / 2, { angle: 90, align: 'center' });
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.text(chapaH + ' mm', cotaLeftX - 2, desenhoY + desenhoH / 2, { angle: 90, align: 'center' });
 
       // ---------- RETÂNGULO DA CHAPA ----------
-      pdf.setFillColor(249, 250, 251); // fundo cinza claro
-      pdf.setDrawColor(55, 65, 81);
-      pdf.setLineWidth(1.2);
-      pdf.roundedRect(desenhoX, desenhoY, desenhoW, desenhoH, 1, 1, 'FD');
+      pdf.setFillColor(255, 255, 255); // fundo branco
+      pdf.setDrawColor(0, 0, 0);
+      pdf.setLineWidth(1.5);
+      pdf.rect(desenhoX, desenhoY, desenhoW, desenhoH, 'FD');
 
       // Grid leve na chapa
       pdf.setDrawColor(220, 220, 220);
@@ -202,10 +324,9 @@ const SistemaOrcamentoMarmore = () => {
         pdf.line(desenhoX, desenhoY + i, desenhoX + desenhoW, desenhoY + i);
       }
 
-      // ---------- PEÇAS (borda desenhada para DENTRO para não sobrepor vizinhas) ----------
-      const cores = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899','#14b8a6'];
+      // ---------- PEÇAS (PRETO E BRANCO) ----------
       const legendaItens = [];
-      const bordaW = 0.5; // espessura da borda em mm do PDF
+      const bordaW = 0.8; // espessura da borda em mm do PDF
       const inset = bordaW / 2; // quanto encolher cada lado para borda ficar dentro
 
       chapa.pecas.forEach((peca, pIdx) => {
@@ -214,35 +335,33 @@ const SistemaOrcamentoMarmore = () => {
         const pw = (peca.rotacao === 90 ? peca.altura : peca.comprimento) * escala;
         const ph = (peca.rotacao === 90 ? peca.comprimento : peca.altura) * escala;
 
-        const cor = cores[pIdx % cores.length];
-        const r = parseInt(cor.slice(1, 3), 16);
-        const g = parseInt(cor.slice(3, 5), 16);
-        const b = parseInt(cor.slice(5, 7), 16);
-
-        // Preencher a área inteira da peça com cor clara
-        pdf.setFillColor(r + (255 - r) * 0.75, g + (255 - g) * 0.75, b + (255 - b) * 0.75);
+        // Preencher a área da peça com branco
+        pdf.setFillColor(255, 255, 255);
         pdf.rect(px, py, pw, ph, 'F');
 
-        // Borda desenhada PARA DENTRO (inset) — nunca invade o espaçamento
-        pdf.setDrawColor(r, g, b);
+        // Borda preta desenhada PARA DENTRO (inset)
+        pdf.setDrawColor(0, 0, 0);
         pdf.setLineWidth(bordaW);
         pdf.rect(px + inset, py + inset, pw - bordaW, ph - bordaW, 'D');
 
-        // Número da peça (centro)
+        // Número da peça e dimensões (centro) - EM PRETO
         if (pw > 3 && ph > 3) {
-          pdf.setTextColor(r, g, b);
-          pdf.setFontSize(Math.min(12, pw * 0.45, ph * 0.35));
-          pdf.setFont('helvetica', 'bold');
-          pdf.text(String(pIdx + 1), px + pw / 2, py + ph / 2 + 0.5, { align: 'center' });
+          pdf.setTextColor(0, 0, 0);
 
-          // Dimensões abaixo do número
-          if (pw > 8 && ph > 7) {
-            const fontDim = Math.min(5.5, pw * 0.2, ph * 0.15);
-            pdf.setFontSize(fontDim);
+          // Número da peça
+          pdf.setFontSize(Math.min(16, pw * 0.55, ph * 0.45));
+          pdf.setFont('helvetica', 'bold');
+          const numeroY = ph > 10 ? py + ph / 2 - 1 : py + ph / 2 + 1;
+          pdf.text(String(pIdx + 1), px + pw / 2, numeroY, { align: 'center' });
+
+          // Dimensões da peça (abaixo do número) - apenas se tiver espaço
+          if (ph > 10) {
+            pdf.setFontSize(9);
             pdf.setFont('helvetica', 'normal');
-            pdf.setTextColor(40, 40, 40);
-            const dim = peca.rotacao === 90 ? peca.altura + 'x' + peca.comprimento : peca.comprimento + 'x' + peca.altura;
-            pdf.text(dim, px + pw / 2, py + ph / 2 + Math.min(3.5, ph * 0.18), { align: 'center' });
+            const pecaCompExib = peca.rotacao === 90 ? peca.altura : peca.comprimento;
+            const pecaAltExib = peca.rotacao === 90 ? peca.comprimento : peca.altura;
+            const dimText = pecaCompExib + 'x' + pecaAltExib;
+            pdf.text(dimText, px + pw / 2, py + ph / 2 + 4, { align: 'center' });
           }
         }
 
@@ -250,68 +369,119 @@ const SistemaOrcamentoMarmore = () => {
         const nome = peca.nome || ('Peça ' + (pIdx + 1));
         const pecaCompExib = peca.rotacao === 90 ? peca.altura : peca.comprimento;
         const pecaAltExib = peca.rotacao === 90 ? peca.comprimento : peca.altura;
-        legendaItens.push({ numero: pIdx + 1, nome, cor, dim: pecaCompExib + 'x' + pecaAltExib, rotado: peca.rotacao === 90 });
+        legendaItens.push({ numero: pIdx + 1, nome, dim: pecaCompExib + 'x' + pecaAltExib, rotado: peca.rotacao === 90 });
       });
+
+      // ---------- HACHURAS NAS ÁREAS DE SOBRA ----------
+      // Desenhar hachuras diagonais apenas nas áreas não ocupadas
+      pdf.setDrawColor(160, 160, 160);
+      pdf.setLineWidth(0.15);
+      const espacamentoHachura = 2.5; // espaçamento entre linhas de hachura em mm
+
+      // Função auxiliar para verificar se um ponto está dentro de alguma peça
+      const pontoEmPeca = (x, y) => {
+        for (const peca of chapa.pecas) {
+          const px = desenhoX + peca.posX * escala;
+          const py = desenhoY + peca.posY * escala;
+          const pw = (peca.rotacao === 90 ? peca.altura : peca.comprimento) * escala;
+          const ph = (peca.rotacao === 90 ? peca.comprimento : peca.altura) * escala;
+          if (x >= px && x <= px + pw && y >= py && y <= py + ph) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      // Desenhar hachuras em grade pequena para evitar peças
+      const step = 1; // passo pequeno para verificação
+      for (let offset = -desenhoH; offset < desenhoW + desenhoH; offset += espacamentoHachura) {
+        let segmentos = []; // armazenar segmentos válidos
+
+        for (let t = 0; t < desenhoW + desenhoH; t += step) {
+          const x = desenhoX + offset + t;
+          const y = desenhoY + t;
+
+          // Verificar se está dentro dos limites da chapa
+          if (x >= desenhoX && x <= desenhoX + desenhoW && y >= desenhoY && y <= desenhoY + desenhoH) {
+            const emPeca = pontoEmPeca(x, y);
+
+            if (!emPeca) {
+              if (segmentos.length === 0 || segmentos[segmentos.length - 1].fim) {
+                segmentos.push({ x1: x, y1: y, x2: x, y2: y, fim: false });
+              } else {
+                segmentos[segmentos.length - 1].x2 = x;
+                segmentos[segmentos.length - 1].y2 = y;
+              }
+            } else {
+              if (segmentos.length > 0) {
+                segmentos[segmentos.length - 1].fim = true;
+              }
+            }
+          }
+        }
+
+        // Desenhar os segmentos válidos
+        for (const seg of segmentos) {
+          if (Math.abs(seg.x2 - seg.x1) > 1 || Math.abs(seg.y2 - seg.y1) > 1) {
+            pdf.line(seg.x1, seg.y1, seg.x2, seg.y2);
+          }
+        }
+      }
 
       // ---------- LEGENDA (coluna vertical à esquerda) ----------
       const legendaX = margin;
-      let legendaY = areaTop + 2;
-      const legendaLineH = 10; // altura de cada item
+      let legendaY = areaTop;
 
       // Título da legenda
-      pdf.setFillColor(30, 41, 59);
-      pdf.roundedRect(legendaX, legendaY - 4, legendaW, 10, 1, 1, 'F');
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(8);
+      pdf.setDrawColor(0, 0, 0);
+      pdf.setFillColor(255, 255, 255);
+      pdf.setLineWidth(0.8);
+      pdf.rect(legendaX, legendaY, legendaW, 8, 'FD');
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('LEGENDA', legendaX + legendaW / 2, legendaY + 2, { align: 'center' });
-      legendaY += 12;
+      pdf.text('LEGENDA', legendaX + legendaW / 2, legendaY + 6, { align: 'center' });
+      legendaY += 8;
 
-      // Fundo da legenda
-      const legendaAltura = Math.min(legendaItens.length * legendaLineH + 6, areaBottom - legendaY);
-      pdf.setFillColor(248, 250, 252);
-      pdf.setDrawColor(200, 210, 220);
-      pdf.setLineWidth(0.3);
-      pdf.roundedRect(legendaX, legendaY - 4, legendaW, legendaAltura, 1, 1, 'FD');
-
+      // Itens da legenda (sem borda externa, apenas linhas separando)
       legendaItens.forEach((item, i) => {
-        if (legendaY + 6 > areaBottom) return; // não ultrapassar a área
+        if (legendaY + 5.5 > areaBottom - 10) return; // não ultrapassar a área
 
-        const r = parseInt(item.cor.slice(1, 3), 16);
-        const g = parseInt(item.cor.slice(3, 5), 16);
-        const b = parseInt(item.cor.slice(5, 7), 16);
+        // Linha separadora
+        if (i > 0) {
+          pdf.setDrawColor(200, 200, 200);
+          pdf.setLineWidth(0.3);
+          pdf.line(legendaX, legendaY, legendaX + legendaW, legendaY);
+        }
 
-        // Quadradinho colorido
-        pdf.setFillColor(r, g, b);
-        pdf.rect(legendaX + 2, legendaY - 2.5, 4, 4, 'F');
-
-        // Número + nome
-        pdf.setTextColor(30, 41, 59);
-        pdf.setFontSize(7);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(item.numero + '.', legendaX + 8, legendaY + 0.5);
-
+        // Formato: "1 - asdasdasd 600 x 500"
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFontSize(9);
         pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(6.5);
+
         // Truncar nome se muito longo
         let nomeExib = item.nome;
-        if (nomeExib.length > 18) nomeExib = nomeExib.substring(0, 17) + '…';
-        pdf.text(nomeExib, legendaX + 13, legendaY + 0.5);
+        if (nomeExib.length > 15) nomeExib = nomeExib.substring(0, 14) + '...';
 
-        // Dimensões + rotação
-        pdf.setTextColor(100, 110, 120);
-        pdf.setFontSize(5.5);
-        const rot = item.rotado ? ' ↻' : '';
-        pdf.text(item.dim + rot, legendaX + 13, legendaY + 4.5);
+        // Montar texto completo: "1 - Nome 600 x 500"
+        const textoCompleto = item.numero + ' - ' + nomeExib + ' ' + item.dim;
+        pdf.text(textoCompleto, legendaX + 2, legendaY + 4);
 
-        legendaY += legendaLineH;
+        legendaY += 6; // espaçamento entre linhas
       });
 
+      // Borda externa da área de legenda
+      pdf.setDrawColor(0, 0, 0);
+      pdf.setLineWidth(0.8);
+      const legendaAltura = (legendaItens.length * 6) + 8;
+      pdf.rect(legendaX, areaTop, legendaW, Math.min(legendaAltura, areaBottom - areaTop - 10), 'S');
+
       // ---------- RODAPÉ ----------
-      pdf.setTextColor(150, 150, 150);
-      pdf.setFontSize(6);
+      const rodapeY = pageH - 10;
+      pdf.setTextColor(120, 120, 120);
+      pdf.setFontSize(7);
       pdf.setFont('helvetica', 'normal');
-      pdf.text('Gerado pelo Sistema Pietra  |  ' + new Date().toLocaleDateString('pt-BR'), pageW / 2, pageH - 4, { align: 'center' });
+      pdf.text('Gerado pelo Sistema Pietra  |  ' + new Date().toLocaleDateString('pt-BR'), pageW / 2, rodapeY, { align: 'center' });
     });
 
     // Salvar
@@ -337,10 +507,13 @@ const SistemaOrcamentoMarmore = () => {
       return;
     }
 
+    // Obter configuração do material para este orçamento (usa padrão se não existir)
+    const materialConfig = orcamentoAtual.materiais?.[peca.materialId] || { ...CONFIG_CHAPA_PADRAO };
+
     const pecaComp = parseFloat(peca.comprimento);
     const pecaAlt = parseFloat(peca.altura);
-    const chapaComp = material.comprimento;
-    const chapaAlt = material.altura;
+    const chapaComp = materialConfig.comprimento;
+    const chapaAlt = materialConfig.altura;
 
     // Verificar se cabe de alguma forma (normal ou rotacionada)
     const cabeNormal = pecaComp <= chapaComp && pecaAlt <= chapaAlt;
@@ -359,10 +532,17 @@ const SistemaOrcamentoMarmore = () => {
     }
 
     const novasPecas = [];
-    for (let i = 0; i < (peca.quantidade || 1); i++) {
+    const quantidade = peca.quantidade || 1;
+    for (let i = 0; i < quantidade; i++) {
+      // Se quantidade > 1, adicionar numeração no nome
+      const nomeComNumeracao = quantidade > 1
+        ? `${peca.nome} ${i + 1} - ${quantidade}`
+        : peca.nome;
+
       novasPecas.push({
         ...peca,
         id: Date.now() + i + Math.random(),
+        nome: nomeComNumeracao,
         quantidade: 1,
         ambienteId,
         chapaId: null,
@@ -379,7 +559,13 @@ const SistemaOrcamentoMarmore = () => {
       return amb;
     });
 
-    const novoOrcamento = { ...orcamentoAtual, ambientes };
+    // Garantir que o material tem configuração no orçamento
+    const materiaisConfig = { ...orcamentoAtual.materiais };
+    if (!materiaisConfig[peca.materialId]) {
+      materiaisConfig[peca.materialId] = { ...CONFIG_CHAPA_PADRAO };
+    }
+
+    const novoOrcamento = { ...orcamentoAtual, ambientes, materiais: materiaisConfig };
     setOrcamentoAtual(novoOrcamento);
 
     // Sincronizar com a lista de orçamentos
@@ -607,6 +793,76 @@ const SistemaOrcamentoMarmore = () => {
     ));
   };
 
+  // Salvar preços do orçamento e reorganizar chapas
+  const salvarPrecosOrcamento = () => {
+    if (!orcamentoAtual) return;
+
+    // Criar orçamento atualizado com os novos preços
+    const orcamentoComPrecosAtualizados = {
+      ...orcamentoAtual,
+      precos: { ...orcamentoAtual.precos, ...precosTemp }
+    };
+
+    // Reorganizar chapas com os novos preços (preserva os preços)
+    const orcamentoReorganizado = organizarPecasEmChapas(orcamentoComPrecosAtualizados, materiais);
+
+    // Aplicar as mudanças (uma única atualização de estado)
+    setOrcamentoAtual(orcamentoReorganizado);
+    setOrcamentos(prev => prev.map(orc =>
+      orc.id === orcamentoAtual.id ? orcamentoReorganizado : orc
+    ));
+
+    // Forçar re-renderização do resumo
+    setOrcamentoVersion(prev => prev + 1);
+
+    // Mostrar feedback
+    setPrecosSalvosOrcamento(true);
+    setTimeout(() => setPrecosSalvosOrcamento(false), 2000);
+  };
+
+  // Salvar configuração de materiais e reorganizar chapas
+  const salvarMateriaisOrcamento = () => {
+    if (!orcamentoAtual) return;
+
+    // Criar orçamento atualizado com as novas configurações de materiais
+    const orcamentoComMateriaisAtualizados = {
+      ...orcamentoAtual,
+      materiais: { ...orcamentoAtual.materiais, ...materiaisTemp }
+    };
+
+    // Reorganizar chapas com as novas configurações (preserva os materiais)
+    const orcamentoReorganizado = organizarPecasEmChapas(orcamentoComMateriaisAtualizados, materiais);
+
+    // Aplicar as mudanças (uma única atualização de estado)
+    setOrcamentoAtual(orcamentoReorganizado);
+    setOrcamentos(prev => prev.map(orc =>
+      orc.id === orcamentoAtual.id ? orcamentoReorganizado : orc
+    ));
+
+    // Forçar re-renderização do resumo
+    setOrcamentoVersion(prev => prev + 1);
+
+    // Mostrar feedback
+    setMateriaisSalvosOrcamento(true);
+    setTimeout(() => setMateriaisSalvosOrcamento(false), 2000);
+  };
+
+  // Inicializar estado temporário quando o painel de preços abre
+  useEffect(() => {
+    if (mostrarPainelPrecosOrcamento && orcamentoAtual) {
+      setPrecosTemp({ ...orcamentoAtual.precos });
+      setPrecosSalvosOrcamento(false);
+    }
+  }, [mostrarPainelPrecosOrcamento, orcamentoAtual?.id]);
+
+  // Inicializar estado temporário quando o painel de materiais abre
+  useEffect(() => {
+    if (mostrarPainelMateriaisOrcamento && orcamentoAtual) {
+      setMateriaisTemp({ ...orcamentoAtual.materiais });
+      setMateriaisSalvosOrcamento(false);
+    }
+  }, [mostrarPainelMateriaisOrcamento, orcamentoAtual?.id]);
+
   // Calcular totais
   // Calcular orçamento salvo (usa os materiais salvos no orçamento)
 
@@ -792,32 +1048,143 @@ const SistemaOrcamentoMarmore = () => {
     alert('✅ Peça movida com sucesso!\n\n📍 Posição: X=' + Math.round(posicao.x) + 'mm, Y=' + Math.round(posicao.y) + 'mm');
   };
 
+  // Excluir chapa vazia
+  const excluirChapa = (chapaId) => {
+    const chapaParaExcluir = orcamentoAtual.chapas.find(c => c.id === chapaId);
+
+    // Verificar se a chapa está realmente vazia
+    if (chapaParaExcluir && chapaParaExcluir.pecas.length > 0) {
+      alert('❌ Esta chapa não pode ser excluída pois contém peças!');
+      return;
+    }
+
+    // Remover a chapa da lista
+    const chapasAtualizadas = orcamentoAtual.chapas.filter(c => c.id !== chapaId);
+
+    const orcamentoAtualizado = {
+      ...orcamentoAtual,
+      chapas: chapasAtualizadas
+    };
+
+    setOrcamentoAtual(orcamentoAtualizado);
+
+    // Sincronizar com a lista de orçamentos
+    setOrcamentos(prev => prev.map(orc =>
+      orc.id === orcamentoAtual.id ? orcamentoAtualizado : orc
+    ));
+
+    alert('✅ Chapa vazia excluída com sucesso!');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Header Moderno */}
-        <header className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl shadow-xl p-8 mb-8 border border-slate-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
-                  <Grid size={28} className="text-white" />
-                </div>
-                Sistema de Orçamento
-              </h1>
-              <p className="text-slate-300 text-lg">Mármore & Granito - Gestão Profissional</p>
+        <header className={`bg-gradient-to-r from-slate-800 to-slate-900 shadow-xl border border-slate-700 ${tela === 'orcamento' && orcamentoAtual ? 'rounded-t-2xl mb-0' : 'rounded-2xl mb-8'}`}>
+          <div className="p-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
+                  <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+                    <Grid size={28} className="text-white" />
+                  </div>
+                  Sistema de Orçamento
+                </h1>
+                <p className="text-slate-300 text-lg">Mármore & Granito - Gestão Profissional</p>
+              </div>
             </div>
-            {tela !== 'lista' && (
-              <button
-                onClick={() => setTela('lista')}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl transition-all duration-200 border border-white/20"
-              >
-                <Home size={20} />
-                Início
-              </button>
-            )}
           </div>
+
+          {/* Barra de Navegação - Visível apenas na tela de orçamento */}
+          {tela === 'orcamento' && orcamentoAtual && (
+            <div>
+              {/* Botão Menu Mobile */}
+              <button
+                onClick={() => setMenuMobileAberto(!menuMobileAberto)}
+                className="md:hidden w-full flex items-center justify-center gap-2 bg-slate-700 text-white px-4 py-3 hover:bg-slate-800 font-medium transition-all"
+              >
+                <span className="text-xl">{menuMobileAberto ? '✕' : '☰'}</span>
+                <span>Menu</span>
+              </button>
+
+              {/* Barra de Navegação - Botões grudados */}
+              <div className={`${menuMobileAberto ? 'flex' : 'hidden'} md:flex flex-col md:flex-row`}>
+                <button
+                  onClick={() => {
+                    setTela('lista');
+                    setOrcamentoAtual(null);
+                    setMenuMobileAberto(false);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 bg-slate-700 text-white px-4 py-3 hover:bg-slate-800 font-medium transition-all border-r border-slate-600"
+                >
+                  <Home size={18} />
+                  <span>Início</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setTela('plano-corte');
+                    setMenuMobileAberto(false);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 bg-slate-700 text-white px-4 py-3 hover:bg-slate-800 font-medium transition-all border-r border-slate-600"
+                >
+                  <Grid size={18} />
+                  <span>Plano de Corte</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    gerarEtiquetasPDF();
+                    setMenuMobileAberto(false);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 bg-slate-700 text-white px-4 py-3 hover:bg-slate-800 font-medium transition-all border-r border-slate-600"
+                >
+                  <Printer size={18} />
+                  <span>Gerar Etiquetas</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    salvarOrcamentoAtual();
+                    alert('✅ Orçamento salvo com sucesso!');
+                    setTela('lista');
+                    setOrcamentoAtual(null);
+                    setMenuMobileAberto(false);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 bg-slate-700 text-white px-4 py-3 hover:bg-slate-800 font-medium transition-all border-r border-slate-600"
+                >
+                  <Save size={18} />
+                  <span>Salvar Orçamento</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setMostrarPainelPrecosOrcamento(!mostrarPainelPrecosOrcamento);
+                    setMenuMobileAberto(false);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 bg-slate-700 text-white px-4 py-3 hover:bg-slate-800 font-medium transition-all border-r border-slate-600"
+                >
+                  <span className="text-lg">💰</span>
+                  <span>Configurar Preços</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setMostrarPainelMateriaisOrcamento(!mostrarPainelMateriaisOrcamento);
+                    setMenuMobileAberto(false);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 bg-slate-700 text-white px-4 py-3 hover:bg-slate-800 font-medium transition-all"
+                >
+                  <Package size={18} />
+                  <span>Configurar Materiais</span>
+                </button>
+              </div>
+            </div>
+          )}
         </header>
+
+        {/* Espaçamento após barra de navegação */}
+        {tela === 'orcamento' && orcamentoAtual && <div className="mb-8"></div>}
 
         {/* Modal Novo Orçamento - Design Moderno */}
         {mostrarModalNovoOrcamento && (
@@ -914,7 +1281,28 @@ const SistemaOrcamentoMarmore = () => {
                       if (!copia.cooktop) copia.cooktop = 0;
                       if (!copia.recorte) copia.recorte = 0;
                       if (!copia.pes) copia.pes = 0;
-                      
+
+                      // Inicializar acabamentos personalizados com valores calculados dos lados
+                      if (!copia.acabamentosPersonalizados) {
+                        const largura = copia.rotacao === 90 ? copia.altura : copia.comprimento;
+                        const altura = copia.rotacao === 90 ? copia.comprimento : copia.altura;
+
+                        copia.acabamentosPersonalizados = {};
+                        ['esquadria', 'boleado', 'polimento', 'canal'].forEach(tipo => {
+                          if (copia.acabamentos[tipo]?.ativo) {
+                            let totalMm = 0;
+                            const lados = copia.acabamentos[tipo].lados;
+                            if (lados.superior) totalMm += largura;
+                            if (lados.inferior) totalMm += largura;
+                            if (lados.esquerda) totalMm += altura;
+                            if (lados.direita) totalMm += altura;
+                            copia.acabamentosPersonalizados[tipo] = (totalMm / 1000).toFixed(2);
+                          } else {
+                            copia.acabamentosPersonalizados[tipo] = '';
+                          }
+                        });
+                      }
+
                       setPecaEditada(copia);
                       setModoEdicaoPeca(true);
                     }}
@@ -1009,56 +1397,79 @@ const SistemaOrcamentoMarmore = () => {
                 {/* Acabamentos - EDITÁVEL OU VISUALIZAÇÃO */}
                 {(modoEdicaoPeca || (mostrandoDetalhePeca.acabamentos && Object.values(mostrandoDetalhePeca.acabamentos).some(a => a.ativo))) && (
                   <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
-                    <h4 className="font-semibold text-purple-900 mb-2 text-sm">✨ Acabamentos</h4>
+                    <h4 className="font-semibold text-purple-900 mb-3 text-sm">✨ Acabamentos</h4>
                     {modoEdicaoPeca ? (
-                      <div className="space-y-2">
-                        {['polimento', 'esquadria', 'boleado', 'canal'].map(tipo => (
-                          <div key={tipo} className="bg-white rounded p-2 border border-purple-300">
-                            <label className="flex items-center gap-2 mb-1">
-                              <input
-                                type="checkbox"
-                                checked={pecaEditada?.acabamentos?.[tipo]?.ativo || false}
-                                onChange={(e) => {
-                                  const novosAcabamentos = {...(pecaEditada?.acabamentos || {})};
-                                  if (!novosAcabamentos[tipo]) {
-                                    novosAcabamentos[tipo] = { 
-                                      ativo: false, 
-                                      lados: { superior: false, inferior: false, esquerda: false, direita: false } 
-                                    };
-                                  }
-                                  novosAcabamentos[tipo].ativo = e.target.checked;
-                                  setPecaEditada({...pecaEditada, acabamentos: novosAcabamentos});
-                                }}
-                                className="w-4 h-4"
-                              />
-                              <span className="font-semibold text-sm capitalize">{tipo}</span>
-                            </label>
-                            {pecaEditada?.acabamentos?.[tipo]?.ativo && (
-                              <div className="flex flex-wrap gap-1 ml-6 mt-1">
-                                {['superior', 'inferior', 'esquerda', 'direita'].map(lado => (
-                                  <label key={lado} className="flex items-center gap-1 text-xs">
-                                    <input
-                                      type="checkbox"
-                                      checked={pecaEditada?.acabamentos?.[tipo]?.lados?.[lado] || false}
-                                      onChange={(e) => {
-                                        const novosAcabamentos = {...pecaEditada.acabamentos};
-                                        novosAcabamentos[tipo].lados[lado] = e.target.checked;
-                                        setPecaEditada({...pecaEditada, acabamentos: novosAcabamentos});
-                                      }}
-                                      className="w-3 h-3"
-                                    />
-                                    <span>{lado}</span>
-                                  </label>
-                                ))}
+                      <div className="space-y-3">
+                        <p className="text-xs text-purple-800 bg-purple-100 p-2 rounded border border-purple-300">
+                          💡 <strong>Modo de edição:</strong> Insira a quantidade de acabamento em metros lineares. Deixe em branco ou 0 para desativar o acabamento.
+                        </p>
+                        <div className="grid md:grid-cols-2 gap-3">
+                          {['polimento', 'esquadria', 'boleado', 'canal'].map(tipo => {
+                            const cores = {
+                              polimento: 'border-blue-400 focus:ring-blue-500',
+                              esquadria: 'border-red-400 focus:ring-red-500',
+                              boleado: 'border-yellow-400 focus:ring-yellow-500',
+                              canal: 'border-orange-400 focus:ring-orange-500'
+                            };
+                            return (
+                              <div key={tipo} className="bg-white rounded-lg p-3 border-2 border-purple-300">
+                                <label className="block mb-2">
+                                  <span className="font-semibold text-sm capitalize text-slate-700">{tipo}</span>
+                                  <span className="text-xs text-slate-500 ml-1">(R$ {precos[tipo]}/m)</span>
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={pecaEditada?.acabamentosPersonalizados?.[tipo] || ''}
+                                    onChange={(e) => {
+                                      const novosAcabamentosPersonalizados = {
+                                        ...(pecaEditada?.acabamentosPersonalizados || {}),
+                                        [tipo]: e.target.value
+                                      };
+                                      setPecaEditada({
+                                        ...pecaEditada,
+                                        acabamentosPersonalizados: novosAcabamentosPersonalizados
+                                      });
+                                    }}
+                                    className={`w-full px-3 py-2 border-2 ${cores[tipo]} rounded-lg focus:ring-2 focus:outline-none text-sm font-medium`}
+                                    placeholder="0.00"
+                                  />
+                                  <span className="text-sm text-slate-600 whitespace-nowrap">metros</span>
+                                </div>
+                                {pecaEditada?.acabamentosPersonalizados?.[tipo] > 0 && (
+                                  <div className="mt-2 text-xs text-green-700 bg-green-50 p-2 rounded border border-green-200">
+                                    <strong>Custo:</strong> {((parseFloat(pecaEditada.acabamentosPersonalizados[tipo]) || 0) * precos[tipo]).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        ))}
+                            );
+                          })}
+                        </div>
                       </div>
                     ) : (
                       <div className="grid md:grid-cols-2 gap-2">
                         {Object.keys(mostrandoDetalhePeca.acabamentos).map(tipo => {
                           const acab = mostrandoDetalhePeca.acabamentos[tipo];
+                          const valorPersonalizado = mostrandoDetalhePeca.acabamentosPersonalizados?.[tipo];
+
+                          // Se tem valor personalizado, mostrar ele
+                          if (valorPersonalizado && parseFloat(valorPersonalizado) > 0) {
+                            const metros = parseFloat(valorPersonalizado);
+                            const valor = metros * precos[tipo];
+                            return (
+                              <div key={tipo} className="bg-white rounded p-2 border border-purple-300">
+                                <div className="font-semibold text-slate-800 capitalize text-sm mb-1">{tipo}</div>
+                                <div className="text-xs text-slate-700">
+                                  <span className="font-bold text-blue-600">{metros.toFixed(2)}m</span>
+                                  <span className="ml-2 text-green-600">({valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})</span>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          // Se não, mostrar lados (modo tradicional)
                           if (!acab.ativo) return null;
                           const lados = Object.keys(acab.lados).filter(lado => acab.lados[lado]);
                           return (
@@ -1262,290 +1673,8 @@ const SistemaOrcamentoMarmore = () => {
         {/* Menu Principal - Design Moderno */}
         {tela === 'lista' && (
           <div className="space-y-8">
-            {/* Painel de Configuração de Preços */}
-            <div className="bg-white rounded-2xl shadow-lg border border-slate-200">
-              <button
-                onClick={() => setMostrarPainelPrecos(!mostrarPainelPrecos)}
-                className="w-full flex items-center justify-between p-6 hover:bg-slate-50 transition-colors rounded-2xl"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white text-xl font-bold">R$</span>
-                  </div>
-                  <div className="text-left">
-                    <h2 className="text-xl font-bold text-slate-800">Configuração de Preços</h2>
-                    <p className="text-sm text-slate-500">Acabamentos e recortes</p>
-                  </div>
-                </div>
-                <div className="text-slate-400">
-                  {mostrarPainelPrecos ? '▲' : '▼'}
-                </div>
-              </button>
-              
-              {mostrarPainelPrecos && (
-                <div className="px-6 pb-6 pt-2 border-t border-slate-200">
-                  <div className="grid md:grid-cols-2 gap-6">
-                    {/* Acabamentos */}
-                    <div>
-                      <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                        Acabamentos (por metro linear)
-                      </h3>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-slate-600 mb-1">Polimento</label>
-                          <div className="flex items-center gap-2">
-                            <span className="text-slate-500">R$</span>
-                            <input
-                              type="number"
-                              value={precos.polimento}
-                              onChange={(e) => atualizarPreco('polimento', e.target.value)}
-                              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
-                              step="0.01"
-                              min="0"
-                            />
-                            <span className="text-slate-500 text-sm">/m</span>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-600 mb-1">Esquadria</label>
-                          <div className="flex items-center gap-2">
-                            <span className="text-slate-500">R$</span>
-                            <input
-                              type="number"
-                              value={precos.esquadria}
-                              onChange={(e) => atualizarPreco('esquadria', e.target.value)}
-                              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
-                              step="0.01"
-                              min="0"
-                            />
-                            <span className="text-slate-500 text-sm">/m</span>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-600 mb-1">Boleado</label>
-                          <div className="flex items-center gap-2">
-                            <span className="text-slate-500">R$</span>
-                            <input
-                              type="number"
-                              value={precos.boleado}
-                              onChange={(e) => atualizarPreco('boleado', e.target.value)}
-                              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
-                              step="0.01"
-                              min="0"
-                            />
-                            <span className="text-slate-500 text-sm">/m</span>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-600 mb-1">Canal</label>
-                          <div className="flex items-center gap-2">
-                            <span className="text-slate-500">R$</span>
-                            <input
-                              type="number"
-                              value={precos.canal}
-                              onChange={(e) => atualizarPreco('canal', e.target.value)}
-                              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
-                              step="0.01"
-                              min="0"
-                            />
-                            <span className="text-slate-500 text-sm">/m</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Recortes */}
-                    <div>
-                      <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
-                        Recortes (por unidade)
-                      </h3>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-slate-600 mb-1">Pia/Cuba</label>
-                          <div className="flex items-center gap-2">
-                            <span className="text-slate-500">R$</span>
-                            <input
-                              type="number"
-                              value={precos.pia}
-                              onChange={(e) => atualizarPreco('pia', e.target.value)}
-                              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
-                              step="0.01"
-                              min="0"
-                            />
-                            <span className="text-slate-500 text-sm">/un</span>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-600 mb-1">Cuba Esculpida</label>
-                          <div className="flex items-center gap-2">
-                            <span className="text-slate-500">R$</span>
-                            <input
-                              type="number"
-                              value={precos.cubaEsculpida}
-                              onChange={(e) => atualizarPreco('cubaEsculpida', e.target.value)}
-                              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
-                              step="0.01"
-                              min="0"
-                            />
-                            <span className="text-slate-500 text-sm">/un</span>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-600 mb-1">Cooktop</label>
-                          <div className="flex items-center gap-2">
-                            <span className="text-slate-500">R$</span>
-                            <input
-                              type="number"
-                              value={precos.cooktop}
-                              onChange={(e) => atualizarPreco('cooktop', e.target.value)}
-                              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
-                              step="0.01"
-                              min="0"
-                            />
-                            <span className="text-slate-500 text-sm">/un</span>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-600 mb-1">Recorte Genérico</label>
-                          <div className="flex items-center gap-2">
-                            <span className="text-slate-500">R$</span>
-                            <input
-                              type="number"
-                              value={precos.recorte}
-                              onChange={(e) => atualizarPreco('recorte', e.target.value)}
-                              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
-                              step="0.01"
-                              min="0"
-                            />
-                            <span className="text-slate-500 text-sm">/un</span>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-600 mb-1">Pés</label>
-                          <div className="flex items-center gap-2">
-                            <span className="text-slate-500">R$</span>
-                            <input
-                              type="number"
-                              value={precos.pes}
-                              onChange={(e) => atualizarPreco('pes', e.target.value)}
-                              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
-                              step="0.01"
-                              min="0"
-                            />
-                            <span className="text-slate-500 text-sm">/un</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Botão Salvar */}
-                  <div className="mt-6 flex items-center justify-between gap-4">
-                    <button
-                      onClick={salvarPrecos}
-                      className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200 ${
-                        precosSalvos 
-                          ? 'bg-green-500 text-white shadow-lg' 
-                          : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-lg'
-                      }`}
-                    >
-                      <Save size={20} />
-                      {precosSalvos ? '✓ Salvo com Sucesso!' : 'Salvar Configurações'}
-                    </button>
-                    
-                    {!precosSalvos && (
-                      <p className="text-sm text-orange-600 font-medium">
-                        ⚠️ Há alterações não salvas
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-blue-800">
-                      💡 <strong>Dica:</strong> Estes valores serão usados automaticamente em todos os orçamentos. Clique em "Salvar" para confirmar!
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
             
             <div className="grid md:grid-cols-2 gap-6">
-              {/* Card Materiais - Redesenhado */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-shadow duration-300">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
-                      <Package size={20} className="text-white" />
-                    </div>
-                    <h2 className="text-xl font-bold text-slate-800">Materiais</h2>
-                  </div>
-                  <button
-                    onClick={() => setTela('novo-material')}
-                    className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2.5 rounded-xl hover:shadow-lg transition-all duration-200 font-medium"
-                  >
-                    <PlusCircle size={18} />
-                    Novo
-                  </button>
-                </div>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {materiais.map(mat => (
-                    <div key={mat.id} className="bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-4 hover:shadow-md transition-all duration-200">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-slate-800 text-lg">{mat.nome}</h3>
-                          <div className="grid grid-cols-3 gap-3 mt-2">
-                            <div>
-                              <p className="text-xs text-slate-500">Dimensões</p>
-                              <p className="text-sm font-semibold text-slate-700">{mat.comprimento} x {mat.altura} mm</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-slate-500">Custo</p>
-                              <p className="text-sm font-semibold text-orange-600">{formatBRL(mat.custo)}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-slate-500">Venda</p>
-                              <p className="text-sm font-semibold text-green-600">{formatBRL((mat.venda || mat.custo))}</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 ml-4">
-                          <button
-                            onClick={() => {
-                              setMaterialEditando(mat);
-                              setNovoMaterial({
-                                nome: mat.nome,
-                                comprimento: mat.comprimento.toString(),
-                                altura: mat.altura.toString(),
-                                custo: mat.custo.toString(),
-                                venda: (mat.venda || mat.custo).toString()
-                              });
-                              setTela('editar-material');
-                            }}
-                            className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors"
-                            title="Editar material"
-                          >
-                            <Edit2 size={18} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm('Deseja realmente excluir este material?')) {
-                                setMateriais(materiais.filter(m => m.id !== mat.id));
-                              }
-                            }}
-                            className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
-                            title="Excluir material"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               {/* Card Orçamentos - Redesenhado */}
               <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-shadow duration-300">
                 <div className="flex items-center justify-between mb-6">
@@ -1574,7 +1703,7 @@ const SistemaOrcamentoMarmore = () => {
                   ) : (
                     orcamentos.map(orc => {
                       const totalPecas = orc.ambientes.reduce((sum, amb) => sum + amb.pecas.length, 0);
-                      const orcCalc = calcularOrcamentoComDetalhes(orc, materiais, precos);
+                      const orcCalc = calcularOrcamentoComDetalhes(orc, materiais, orc.precos || PRECOS_PADRAO);
                       return (
                         <div 
                           key={orc.id} 
@@ -1634,13 +1763,54 @@ const SistemaOrcamentoMarmore = () => {
                   )}
                 </div>
               </div>
+
+              {/* Card Materiais - Redesenhado */}
+              <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-shadow duration-300">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                      <Package size={20} className="text-white" />
+                    </div>
+                    <h2 className="text-xl font-bold text-slate-800">Materiais</h2>
+                  </div>
+                  <button
+                    onClick={() => setTela('novo-material')}
+                    className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2.5 rounded-xl hover:shadow-lg transition-all duration-200 font-medium"
+                  >
+                    <PlusCircle size={18} />
+                    Novo
+                  </button>
+                </div>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {materiais.map(mat => (
+                    <div key={mat.id} className="bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-4 hover:shadow-md transition-all duration-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-bold text-slate-800 text-lg">{mat.nome}</h3>
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Deseja realmente excluir este material?')) {
+                              excluirMaterial(mat.id);
+                            }
+                          }}
+                          className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                          title="Excluir material"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
 
         {/* Cadastro de Material */}
         {tela === 'novo-material' && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg shadow-sm p-6 max-w-2xl mx-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-semibold text-gray-800">Novo Material</h2>
               <button
@@ -1650,79 +1820,47 @@ const SistemaOrcamentoMarmore = () => {
                 <X size={24} />
               </button>
             </div>
-            <div className="grid md:grid-cols-2 gap-4 max-w-2xl">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Nome do Material</label>
-                <input
-                  type="text"
-                  value={novoMaterial.nome}
-                  onChange={(e) => setNovoMaterial({ ...novoMaterial, nome: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                  placeholder="Ex: Mármore Branco Carrara"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Comprimento da Chapa (mm)</label>
-                <input
-                  type="number"
-                  value={novoMaterial.comprimento}
-                  onChange={(e) => setNovoMaterial({ ...novoMaterial, comprimento: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                  placeholder="3000"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Altura da Chapa (mm)</label>
-                <input
-                  type="number"
-                  value={novoMaterial.altura}
-                  onChange={(e) => setNovoMaterial({ ...novoMaterial, altura: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                  placeholder="2000"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Custo por Chapa (R$)</label>
-                <input
-                  type="number"
-                  value={novoMaterial.custo}
-                  onChange={(e) => setNovoMaterial({ ...novoMaterial, custo: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                  placeholder="1500.00"
-                  step="0.01"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Preço de Venda (R$)</label>
-                <input
-                  type="number"
-                  value={novoMaterial.venda}
-                  onChange={(e) => setNovoMaterial({ ...novoMaterial, venda: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                  placeholder="2000.00"
-                  step="0.01"
-                />
-              </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <p className="text-sm text-blue-800">
+                💡 <strong>Dica:</strong> As dimensões e preços da chapa serão configurados individualmente em cada orçamento.
+              </p>
             </div>
-            <div className="mt-6">
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Nome do Material *</label>
+              <input
+                type="text"
+                value={novoMaterial.nome}
+                onChange={(e) => setNovoMaterial({ nome: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Ex: Mármore Branco Carrara, Granito Preto, Quartzo Branco"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3">
               <button
                 onClick={() => {
-                  if (novoMaterial.nome && novoMaterial.comprimento && novoMaterial.altura && novoMaterial.custo && novoMaterial.venda) {
-                    setMateriais([...materiais, {
-                      id: Date.now(),
-                      nome: novoMaterial.nome,
-                      comprimento: parseFloat(novoMaterial.comprimento),
-                      altura: parseFloat(novoMaterial.altura),
-                      custo: parseFloat(novoMaterial.custo),
-                      venda: parseFloat(novoMaterial.venda)
-                    }]);
-                    setNovoMaterial({ nome: '', comprimento: '', altura: '', custo: '', venda: '' });
+                  if (novoMaterial.nome && novoMaterial.nome.trim()) {
+                    adicionarMaterial({ nome: novoMaterial.nome.trim() });
                     setTela('lista');
+                  } else {
+                    alert('Por favor, insira um nome para o material.');
                   }
                 }}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium transition-colors"
               >
-                Salvar Material
+                ✓ Salvar Material
+              </button>
+              <button
+                onClick={() => {
+                  setNovoMaterial({ nome: '' });
+                  setTela('lista');
+                }}
+                className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              >
+                Cancelar
               </button>
             </div>
           </div>
@@ -1730,111 +1868,56 @@ const SistemaOrcamentoMarmore = () => {
 
         {/* Edição de Material */}
         {tela === 'editar-material' && materialEditando && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg shadow-sm p-6 max-w-2xl mx-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-semibold text-gray-800">Editar Material</h2>
               <button
                 onClick={() => {
                   setTela('lista');
                   setMaterialEditando(null);
-                  setNovoMaterial({ nome: '', comprimento: '', altura: '', custo: '', venda: '' });
+                  setNovoMaterial({ nome: '' });
                 }}
                 className="text-gray-600 hover:text-gray-800"
               >
                 <X size={24} />
               </button>
             </div>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-              <p className="text-sm text-yellow-800 font-semibold mb-1">
-                ⚠️ Atenção: Alterações neste material afetarão todos os orçamentos
-              </p>
-              <p className="text-xs text-yellow-700">
-                • Mudanças de preço: atualizam o valor dos orçamentos automaticamente<br/>
-                • Mudanças de tamanho: reorganizam as peças e podem adicionar novas chapas se necessário
-              </p>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Nome do Material *</label>
+              <input
+                type="text"
+                value={novoMaterial.nome}
+                onChange={(e) => setNovoMaterial({ nome: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Ex: Mármore Branco Carrara"
+                autoFocus
+              />
             </div>
-            <div className="grid md:grid-cols-2 gap-4 max-w-2xl">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Nome do Material</label>
-                <input
-                  type="text"
-                  value={novoMaterial.nome}
-                  onChange={(e) => setNovoMaterial({ ...novoMaterial, nome: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                  placeholder="Ex: Mármore Branco Carrara"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Comprimento da Chapa (mm)</label>
-                <input
-                  type="number"
-                  value={novoMaterial.comprimento}
-                  onChange={(e) => setNovoMaterial({ ...novoMaterial, comprimento: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                  placeholder="3000"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Altura da Chapa (mm)</label>
-                <input
-                  type="number"
-                  value={novoMaterial.altura}
-                  onChange={(e) => setNovoMaterial({ ...novoMaterial, altura: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                  placeholder="2000"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Custo por Chapa (R$)</label>
-                <input
-                  type="number"
-                  value={novoMaterial.custo}
-                  onChange={(e) => setNovoMaterial({ ...novoMaterial, custo: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                  placeholder="1500.00"
-                  step="0.01"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Preço de Venda (R$)</label>
-                <input
-                  type="number"
-                  value={novoMaterial.venda}
-                  onChange={(e) => setNovoMaterial({ ...novoMaterial, venda: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                  placeholder="2000.00"
-                  step="0.01"
-                />
-              </div>
-            </div>
-            <div className="mt-6 flex gap-3">
+
+            <div className="flex gap-3">
               <button
                 onClick={() => {
-                  if (novoMaterial.nome && novoMaterial.comprimento && novoMaterial.altura && novoMaterial.custo && novoMaterial.venda) {
-                    atualizarMaterial(materialEditando.id, {
-                      nome: novoMaterial.nome,
-                      comprimento: parseFloat(novoMaterial.comprimento),
-                      altura: parseFloat(novoMaterial.altura),
-                      custo: parseFloat(novoMaterial.custo),
-                      venda: parseFloat(novoMaterial.venda)
-                    });
-                    setNovoMaterial({ nome: '', comprimento: '', altura: '', custo: '', venda: '' });
-                    setMaterialEditando(null);
+                  if (novoMaterial.nome && novoMaterial.nome.trim()) {
+                    atualizarMaterialSimples(materialEditando.id, { nome: novoMaterial.nome.trim() });
                     setTela('lista');
-                    alert('Material atualizado com sucesso!\n\nTodos os orçamentos foram recalculados.\nPeças foram reorganizadas nas chapas conforme o novo tamanho.');
+                    setMaterialEditando(null);
+                    setNovoMaterial({ nome: '' });
+                  } else {
+                    alert('Por favor, insira um nome para o material.');
                   }
                 }}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium transition-colors"
               >
-                Salvar Alterações
+                ✓ Salvar Alterações
               </button>
               <button
                 onClick={() => {
                   setTela('lista');
                   setMaterialEditando(null);
-                  setNovoMaterial({ nome: '', comprimento: '', altura: '', custo: '', venda: '' });
+                  setNovoMaterial({ nome: '' });
                 }}
-                className="border border-gray-300 px-6 py-2 rounded-lg hover:bg-gray-50"
+                className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition-colors"
               >
                 Cancelar
               </button>
@@ -1856,36 +1939,281 @@ const SistemaOrcamentoMarmore = () => {
                     placeholder="Nome do orçamento"
                   />
                 </div>
-                <p className="text-sm text-gray-500 mb-3">Criado em: {orcamentoAtual.data}</p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => setTela('plano-corte')}
-                    className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
-                  >
-                    <Grid size={20} />
-                    Plano de Corte
-                  </button>
-                  <button
-                    onClick={() => gerarEtiquetasPDF()}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                  >
-                    <Printer size={20} />
-                    Gerar Etiquetas
-                  </button>
-                  <button
-                    onClick={() => {
-                      salvarOrcamentoAtual();
-                      alert('✅ Orçamento salvo com sucesso!');
-                      setTela('lista');
-                      setOrcamentoAtual(null);
-                    }}
-                    className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-                  >
-                    <Save size={20} />
-                    Salvar Orçamento
-                  </button>
-                </div>
+                <p className="text-sm text-gray-500">Criado em: {orcamentoAtual.data}</p>
               </div>
+
+              {/* Painel de Configuração de Preços do Orçamento */}
+              {mostrarPainelPrecosOrcamento && (
+                <div className="mb-6 bg-amber-50 border-2 border-amber-300 rounded-lg p-6">
+                  <h3 className="text-lg font-bold text-amber-900 mb-4">💰 Configuração de Preços deste Orçamento</h3>
+                  <p className="text-sm text-amber-800 mb-4">
+                    Estes preços são específicos deste orçamento e não afetam outros orçamentos.
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Acabamentos */}
+                    <div className="bg-white p-4 rounded-lg border border-amber-200">
+                      <h4 className="font-bold text-gray-800 mb-3 text-sm">Acabamentos (R$/m)</h4>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">Polimento</label>
+                          <input
+                            type="number"
+                            value={precosTemp.polimento || 0}
+                            onChange={(e) => setPrecosTemp({ ...precosTemp, polimento: parseFloat(e.target.value) || 0 })}
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">Esquadria</label>
+                          <input
+                            type="number"
+                            value={precosTemp.esquadria || 0}
+                            onChange={(e) => setPrecosTemp({ ...precosTemp, esquadria: parseFloat(e.target.value) || 0 })}
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">Boleado</label>
+                          <input
+                            type="number"
+                            value={precosTemp.boleado || 0}
+                            onChange={(e) => setPrecosTemp({ ...precosTemp, boleado: parseFloat(e.target.value) || 0 })}
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">Canal</label>
+                          <input
+                            type="number"
+                            value={precosTemp.canal || 0}
+                            onChange={(e) => setPrecosTemp({ ...precosTemp, canal: parseFloat(e.target.value) || 0 })}
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                            step="0.01"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Recortes */}
+                    <div className="bg-white p-4 rounded-lg border border-amber-200">
+                      <h4 className="font-bold text-gray-800 mb-3 text-sm">Recortes (R$/un)</h4>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">Pia</label>
+                          <input
+                            type="number"
+                            value={precosTemp.pia || 0}
+                            onChange={(e) => setPrecosTemp({ ...precosTemp, pia: parseFloat(e.target.value) || 0 })}
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">Cuba Esculpida</label>
+                          <input
+                            type="number"
+                            value={precosTemp.cubaEsculpida || 0}
+                            onChange={(e) => setPrecosTemp({ ...precosTemp, cubaEsculpida: parseFloat(e.target.value) || 0 })}
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">Cooktop</label>
+                          <input
+                            type="number"
+                            value={precosTemp.cooktop || 0}
+                            onChange={(e) => setPrecosTemp({ ...precosTemp, cooktop: parseFloat(e.target.value) || 0 })}
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">Recorte</label>
+                          <input
+                            type="number"
+                            value={precosTemp.recorte || 0}
+                            onChange={(e) => setPrecosTemp({ ...precosTemp, recorte: parseFloat(e.target.value) || 0 })}
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">Pés</label>
+                          <input
+                            type="number"
+                            value={precosTemp.pes || 0}
+                            onChange={(e) => setPrecosTemp({ ...precosTemp, pes: parseFloat(e.target.value) || 0 })}
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                            step="0.01"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Botão Salvar */}
+                    <div className="bg-white p-4 rounded-lg border border-amber-200 flex flex-col justify-center items-center">
+                      <button
+                        onClick={salvarPrecosOrcamento}
+                        className={`px-6 py-3 rounded-lg font-bold transition-all w-full ${
+                          precosSalvosOrcamento
+                            ? 'bg-green-500 text-white'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }`}
+                      >
+                        {precosSalvosOrcamento ? '✓ Salvo!' : '💾 Salvar Preços'}
+                      </button>
+                      <p className="text-xs text-gray-600 mt-3 text-center">
+                        Clique para salvar e atualizar o plano de corte
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Painel de Configuração de Materiais do Orçamento */}
+              {mostrarPainelMateriaisOrcamento && (
+                <div className="mb-6 bg-purple-50 border-2 border-purple-300 rounded-lg p-6">
+                  <h3 className="text-lg font-bold text-purple-900 mb-4">📦 Configuração de Materiais deste Orçamento</h3>
+                  <p className="text-sm text-purple-800 mb-4">
+                    Defina as dimensões e preços das chapas para cada material usado neste orçamento.
+                  </p>
+
+                  {/* Listar materiais usados no orçamento */}
+                  {(() => {
+                    // Extrair IDs únicos de materiais usados
+                    const materiaisUsados = new Set();
+                    orcamentoAtual.ambientes.forEach(amb => {
+                      amb.pecas.forEach(peca => {
+                        if (peca.materialId) {
+                          materiaisUsados.add(peca.materialId);
+                        }
+                      });
+                    });
+
+                    if (materiaisUsados.size === 0) {
+                      return (
+                        <div className="text-center py-8 text-gray-500">
+                          <p>Nenhum material em uso neste orçamento.</p>
+                          <p className="text-sm mt-2">Adicione peças aos ambientes para configurar materiais.</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-6">
+                        {Array.from(materiaisUsados).map(materialId => {
+                          const material = materiais.find(m => m.id === materialId);
+                          if (!material) return null;
+
+                          const config = materiaisTemp[materialId] || getMaterialConfig(materialId) || CONFIG_CHAPA_PADRAO;
+
+                          return (
+                            <div key={materialId} className="bg-white p-4 rounded-lg border-2 border-purple-200">
+                              <h4 className="font-bold text-gray-900 mb-4">{material.nome}</h4>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {/* Comprimento */}
+                                <div>
+                                  <label className="text-xs text-gray-600 block mb-1">Comprimento (mm)</label>
+                                  <input
+                                    type="number"
+                                    value={config.comprimento || ''}
+                                    onChange={(e) => setMateriaisTemp({
+                                      ...materiaisTemp,
+                                      [materialId]: { ...config, comprimento: parseFloat(e.target.value) || 0 }
+                                    })}
+                                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                                    placeholder="3000"
+                                  />
+                                </div>
+
+                                {/* Altura */}
+                                <div>
+                                  <label className="text-xs text-gray-600 block mb-1">Altura (mm)</label>
+                                  <input
+                                    type="number"
+                                    value={config.altura || ''}
+                                    onChange={(e) => setMateriaisTemp({
+                                      ...materiaisTemp,
+                                      [materialId]: { ...config, altura: parseFloat(e.target.value) || 0 }
+                                    })}
+                                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                                    placeholder="2000"
+                                  />
+                                </div>
+
+                                {/* Custo */}
+                                <div>
+                                  <label className="text-xs text-gray-600 block mb-1">Custo (R$/m²)</label>
+                                  <input
+                                    type="number"
+                                    value={config.custo || ''}
+                                    onChange={(e) => setMateriaisTemp({
+                                      ...materiaisTemp,
+                                      [materialId]: { ...config, custo: parseFloat(e.target.value) || 0 }
+                                    })}
+                                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                                    placeholder="250.00"
+                                    step="0.01"
+                                  />
+                                </div>
+
+                                {/* Venda */}
+                                <div>
+                                  <label className="text-xs text-gray-600 block mb-1">Venda (R$/m²)</label>
+                                  <input
+                                    type="number"
+                                    value={config.venda || ''}
+                                    onChange={(e) => setMateriaisTemp({
+                                      ...materiaisTemp,
+                                      [materialId]: { ...config, venda: parseFloat(e.target.value) || 0 }
+                                    })}
+                                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                                    placeholder="333.33"
+                                    step="0.01"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Informações calculadas */}
+                              <div className="mt-3 pt-3 border-t border-purple-100 text-xs text-gray-600">
+                                <p>
+                                  <strong>Área da chapa:</strong> {((config.comprimento * config.altura) / 1000000).toFixed(2)} m²
+                                  <span className="mx-2">|</span>
+                                  <strong>Custo/chapa:</strong> R$ {((config.comprimento * config.altura / 1000000) * config.custo).toFixed(2)}
+                                  <span className="mx-2">|</span>
+                                  <strong>Venda/chapa:</strong> R$ {((config.comprimento * config.altura / 1000000) * config.venda).toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
+                  <div className="mt-4 flex flex-col items-center">
+                    <button
+                      onClick={salvarMateriaisOrcamento}
+                      className={`px-6 py-3 rounded-lg font-bold transition-all ${
+                        materiaisSalvosOrcamento
+                          ? 'bg-green-500 text-white'
+                          : 'bg-purple-600 hover:bg-purple-700 text-white'
+                      }`}
+                    >
+                      {materiaisSalvosOrcamento ? '✓ Salvo!' : '💾 Salvar Configurações'}
+                    </button>
+                    <p className="text-xs text-gray-600 mt-3 text-center">
+                      Clique para salvar e atualizar o plano de corte
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Adicionar Ambiente */}
               <div className="mb-6">
@@ -1925,7 +2253,8 @@ const SistemaOrcamentoMarmore = () => {
                     key={ambiente.id}
                     ambiente={ambiente}
                     materiais={materiais}
-                    precos={precos}
+                    materialConfigs={orcamentoAtual.materiais || {}}
+                    precos={orcamentoAtual.precos || PRECOS_PADRAO}
                     onAdicionarPeca={(peca) => adicionarPeca(ambiente.id, peca)}
                     onExcluirPeca={(pecaId) => excluirPeca(ambiente.id, pecaId)}
                     onVisualizarPeca={(peca) => setMostrandoDetalhePeca(peca)}
@@ -1938,7 +2267,12 @@ const SistemaOrcamentoMarmore = () => {
             </div>
 
             {/* Resumo do Orçamento */}
-            <ResumoOrcamento orcamentoAtual={orcamentoAtual} materiais={materiais} precos={precos} />
+            <ResumoOrcamento
+              key={`resumo-${orcamentoAtual.id}-v${orcamentoVersion}`}
+              orcamentoAtual={orcamentoAtual}
+              materiais={materiais}
+              precos={orcamentoAtual.precos || PRECOS_PADRAO}
+            />
           </div>
         )}
 
@@ -1976,8 +2310,11 @@ const SistemaOrcamentoMarmore = () => {
                   key={chapa.id}
                   chapa={chapa}
                   numero={idx + 1}
+                  totalChapas={orcamentoAtual.chapas.length}
+                  orcamentoNome={orcamentoAtual.nome || 'Orçamento'}
                   onMoverPeca={moverPeca}
                   onMoverPecaNaChapa={moverPecaNaChapa}
+                  onExcluirChapa={excluirChapa}
                   onGirarPeca={girarPeca}
                   pecaArrastando={pecaArrastando}
                   setPecaArrastando={setPecaArrastando}
@@ -1993,7 +2330,7 @@ const SistemaOrcamentoMarmore = () => {
 };
 
 // Componente de Card de Ambiente
-const AmbienteCard = ({ ambiente, materiais, precos, onAdicionarPeca, onExcluirPeca, onVisualizarPeca, onPedirConfirmacaoExclusao }) => {
+const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdicionarPeca, onExcluirPeca, onVisualizarPeca, onPedirConfirmacaoExclusao }) => {
   const [expandido, setExpandido] = useState(false);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [novaPeca, setNovaPeca] = useState({
@@ -2015,16 +2352,57 @@ const AmbienteCard = ({ ambiente, materiais, precos, onAdicionarPeca, onExcluirP
     pes: 0
   });
 
+  // Calcular subtotais do ambiente
+  const subtotais = ambiente.pecas.reduce((acc, peca) => {
+    const materialConfig = materialConfigs[peca.materialId] || {
+      comprimento: 3000,
+      altura: 2000,
+      custo: 250,
+      venda: 333.33
+    };
+    const custosPeca = calcularCustosPeca(peca, materialConfig, precos);
+    return {
+      material: acc.material + custosPeca.custoMaterial,
+      acabamentos: acc.acabamentos + custosPeca.acabamentos,
+      recortes: acc.recortes + custosPeca.recortes,
+      total: acc.total + custosPeca.total,
+      area: acc.area + ((peca.altura * peca.comprimento) / 1000000) * (peca.quantidade || 1)
+    };
+  }, { material: 0, acabamentos: 0, recortes: 0, total: 0, area: 0 });
+
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden" style={{ position: 'relative', zIndex: 1 }}>
       <div
-        className="bg-gray-50 p-4 cursor-pointer hover:bg-gray-100"
+        className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 cursor-pointer hover:from-gray-100 hover:to-gray-200 transition-all"
         onClick={() => setExpandido(!expandido)}
       >
-        <div className="flex items-center justify-between">
+        {/* Cabeçalho */}
+        <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold text-gray-800">{ambiente.nome}</h3>
-          <span className="text-sm text-gray-600">{ambiente.pecas.length} peças</span>
+          <span className="text-sm text-gray-600">{ambiente.pecas.length} peças • {subtotais.area.toFixed(2)}m²</span>
         </div>
+
+        {/* Resumo no Card Fechado */}
+        {ambiente.pecas.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-white rounded-lg p-2 border border-green-200">
+              <div className="text-xs text-slate-500">Material</div>
+              <div className="text-sm font-bold text-green-700">{formatBRL(subtotais.material)}</div>
+            </div>
+            <div className="bg-white rounded-lg p-2 border border-blue-200">
+              <div className="text-xs text-slate-500">Acabamentos</div>
+              <div className="text-sm font-bold text-blue-700">{formatBRL(subtotais.acabamentos)}</div>
+            </div>
+            <div className="bg-white rounded-lg p-2 border border-purple-200">
+              <div className="text-xs text-slate-500">Recortes</div>
+              <div className="text-sm font-bold text-purple-700">{formatBRL(subtotais.recortes)}</div>
+            </div>
+            <div className="bg-white rounded-lg p-2 border-2 border-slate-400">
+              <div className="text-xs text-slate-500">Total</div>
+              <div className="text-base font-bold text-slate-800">{formatBRL(subtotais.total)}</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {expandido && (
@@ -2032,7 +2410,13 @@ const AmbienteCard = ({ ambiente, materiais, precos, onAdicionarPeca, onExcluirP
           {/* Lista de Peças */}
           {ambiente.pecas.map(peca => {
             const material = materiais.find(m => m.id === peca.materialId);
-            const custosPeca = calcularCustosPeca(peca, material, precos);
+            const materialConfig = materialConfigs[peca.materialId] || {
+              comprimento: 3000,
+              altura: 2000,
+              custo: 250,
+              venda: 333.33
+            };
+            const custosPeca = calcularCustosPeca(peca, materialConfig, precos);
             return (
               <div key={peca.id} className="bg-gray-50 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-all relative" style={{ zIndex: 1 }}>
                 {/* Botões de Ação - ABSOLUTOS NO CANTO */}
@@ -2796,7 +3180,10 @@ const PreviewAcabamentos = ({ peca, mostrarSempre = false, mini = false }) => {
   );
 };
 const ResumoOrcamento = ({ orcamentoAtual, materiais, precos }) => {
-  const orcamento = calcularOrcamentoComDetalhes(orcamentoAtual, materiais, precos);
+  // Recalcular sempre que orcamentoAtual, materiais ou precos mudarem
+  const orcamento = useMemo(() => {
+    return calcularOrcamentoComDetalhes(orcamentoAtual, materiais, precos);
+  }, [orcamentoAtual, materiais, precos]);
 
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
@@ -2819,16 +3206,23 @@ const ResumoOrcamento = ({ orcamentoAtual, materiais, precos }) => {
         </div>
         {Object.keys(orcamento.chapasPorMaterial || {}).map(materialId => {
           const material = materiais.find(m => m.id === parseInt(materialId));
+          const materialConfig = orcamento.materiais?.[parseInt(materialId)] || {
+            comprimento: 3000,
+            altura: 2000,
+            custo: 250,
+            venda: 333.33
+          };
           const qtd = orcamento.chapasPorMaterial[materialId];
-          const custoParcial = material?.custo * qtd;
-          const vendaParcial = (material?.venda || material?.custo) * qtd;
+          const areaChapa = (materialConfig.comprimento * materialConfig.altura / 1000000);
+          const custoParcial = materialConfig.custo * areaChapa * qtd;
+          const vendaParcial = materialConfig.venda * areaChapa * qtd;
           return (
             <div key={materialId} className="flex justify-between text-sm text-slate-700 pl-4 py-2 hover:bg-slate-50 rounded">
               <span className="flex-1">
                 <span className="font-medium">{material?.nome}</span>
                 <span className="text-slate-500 ml-2">
-                  ({qtd}x chapas • {material?.comprimento}x{material?.altura}mm •
-                  {((material?.comprimento * material?.altura / 1000000) * qtd).toFixed(2)}m² total)
+                  ({qtd}x chapas • {materialConfig.comprimento}x{materialConfig.altura}mm •
+                  {(areaChapa * qtd).toFixed(2)}m² total)
                 </span>
               </span>
               <div className="flex gap-6 ml-4">
@@ -2838,7 +3232,7 @@ const ResumoOrcamento = ({ orcamentoAtual, materiais, precos }) => {
             </div>
           );
         })}
-        {orcamento.margemChapas > 0 && (
+        {orcamento.margemChapas > 0 && orcamento.vendaChapas > 0 && (
           <div className="mt-2 pt-2 border-t border-slate-200 flex justify-between text-sm pl-4">
             <span className="font-semibold text-slate-600">Margem das Chapas:</span>
             <span className="font-semibold text-blue-600">{formatBRL(orcamento.margemChapas)} ({((orcamento.margemChapas / orcamento.vendaChapas) * 100).toFixed(1)}%)</span>
@@ -2921,14 +3315,12 @@ const ResumoOrcamento = ({ orcamentoAtual, materiais, precos }) => {
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
             <div className="text-sm text-blue-700 font-medium mb-1">Total Acabamentos</div>
             <div className="text-2xl font-bold text-blue-800">{formatBRL(orcamento.acabamentos)}</div>
-            <div className="text-xs text-blue-600 mt-1">Ver detalhes em cada peça</div>
           </div>
         )}
         {orcamento.recortes > 0 && (
           <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
             <div className="text-sm text-purple-700 font-medium mb-1">Total Recortes</div>
             <div className="text-2xl font-bold text-purple-800">{formatBRL(orcamento.recortes)}</div>
-            <div className="text-xs text-purple-600 mt-1">Ver detalhes em cada peça</div>
           </div>
         )}
       </div>

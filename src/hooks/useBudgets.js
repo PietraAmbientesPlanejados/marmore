@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { STORAGE_KEYS } from '../constants/config';
+import { STORAGE_KEYS, PRECOS_PADRAO, CONFIG_CHAPA_PADRAO } from '../constants/config';
 
 /**
  * Hook para gerenciar orçamentos
@@ -70,7 +70,9 @@ export const useBudgets = () => {
       nome: nomeOrcamento,
       dataCriacao: new Date().toISOString(),
       ambientes: [],
-      chapas: []
+      chapas: [],
+      precos: { ...PRECOS_PADRAO }, // Cada orçamento tem seus próprios preços
+      materiais: {} // Configuração de materiais específica do orçamento: { materialId: { comprimento, altura, custo, venda } }
     };
 
     setOrcamentos(prev => [...prev, novoOrcamento]);
@@ -188,6 +190,50 @@ export const useBudgets = () => {
     salvarOrcamentoAtual();
   };
 
+  /**
+   * Atualiza os preços do orçamento atual
+   * @param {Object} novosPrecos - Novos preços do orçamento
+   */
+  const atualizarPrecosOrcamento = (novosPrecos) => {
+    if (!orcamentoAtual) return;
+
+    const orcamentoAtualizado = {
+      ...orcamentoAtual,
+      precos: { ...orcamentoAtual.precos, ...novosPrecos }
+    };
+
+    setOrcamentoAtual(orcamentoAtualizado);
+
+    // Atualizar também na lista de orçamentos
+    setOrcamentos(prev => prev.map(orc =>
+      orc.id === orcamentoAtual.id ? orcamentoAtualizado : orc
+    ));
+  };
+
+  /**
+   * Atualiza a configuração de um material específico no orçamento atual
+   * @param {number} materialId - ID do material
+   * @param {Object} config - Configuração do material (comprimento, altura, custo, venda)
+   */
+  const atualizarConfigMaterial = (materialId, config) => {
+    if (!orcamentoAtual) return;
+
+    const orcamentoAtualizado = {
+      ...orcamentoAtual,
+      materiais: {
+        ...orcamentoAtual.materiais,
+        [materialId]: { ...(orcamentoAtual.materiais?.[materialId] || {}), ...config }
+      }
+    };
+
+    setOrcamentoAtual(orcamentoAtualizado);
+
+    // Atualizar também na lista de orçamentos
+    setOrcamentos(prev => prev.map(orc =>
+      orc.id === orcamentoAtual.id ? orcamentoAtualizado : orc
+    ));
+  };
+
   return {
     orcamentos,
     orcamentoAtual,
@@ -204,6 +250,8 @@ export const useBudgets = () => {
     carregarOrcamento,
     excluirOrcamento,
     salvarOrcamentoAtual,
-    atualizarNomeOrcamento
+    atualizarNomeOrcamento,
+    atualizarPrecosOrcamento,
+    atualizarConfigMaterial
   };
 };

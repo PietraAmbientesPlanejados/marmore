@@ -7,15 +7,13 @@ import { STORAGE_KEYS } from '../constants/config';
  */
 export const useMaterials = () => {
   const [materiais, setMateriais] = useState([
-    { id: 1, nome: 'Mármore Branco Carrara', comprimento: 3000, altura: 2000, custo: 250, venda: 333.33, precoPorMetro: true }
+    { id: 1, nome: 'Mármore Branco Carrara' },
+    { id: 2, nome: 'Granito Preto São Gabriel' },
+    { id: 3, nome: 'Quartzo Branco' }
   ]);
   const [materialEditando, setMaterialEditando] = useState(null);
   const [novoMaterial, setNovoMaterial] = useState({
-    nome: '',
-    comprimento: '',
-    altura: '',
-    custo: '',
-    venda: ''
+    nome: ''
   });
 
   // Carregar materiais do localStorage ao montar
@@ -43,7 +41,7 @@ export const useMaterials = () => {
 
   /**
    * Adiciona um novo material
-   * @param {Object} material - Dados do material (nome, comprimento, altura, custo, venda)
+   * @param {Object} material - Dados do material (apenas nome)
    */
   const adicionarMaterial = (material) => {
     const novoId = materiais.length > 0
@@ -51,13 +49,8 @@ export const useMaterials = () => {
       : 1;
 
     const materialComId = {
-      ...material,
       id: novoId,
-      comprimento: parseFloat(material.comprimento) || 0,
-      altura: parseFloat(material.altura) || 0,
-      custo: parseFloat(material.custo) || 0,
-      venda: parseFloat(material.venda) || parseFloat(material.custo) || 0,
-      precoPorMetro: true  // Nova flag indicando precificação por m²
+      nome: material.nome
     };
 
     setMateriais(prev => [...prev, materialComId]);
@@ -93,11 +86,7 @@ export const useMaterials = () => {
   const iniciarEdicao = (material) => {
     setMaterialEditando(material);
     setNovoMaterial({
-      nome: material.nome,
-      comprimento: material.comprimento.toString(),
-      altura: material.altura.toString(),
-      custo: material.custo.toString(),
-      venda: material.venda.toString()
+      nome: material.nome
     });
   };
 
@@ -113,7 +102,7 @@ export const useMaterials = () => {
    * Reseta o formulário de novo material
    */
   const resetNovoMaterial = () => {
-    setNovoMaterial({ nome: '', comprimento: '', altura: '', custo: '', venda: '' });
+    setNovoMaterial({ nome: '' });
   };
 
   /**

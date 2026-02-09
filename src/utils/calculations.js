@@ -41,20 +41,32 @@ export const calcularCustosPeca = (peca, material, precos) => {
 
   if (peca.acabamentos) {
     ['esquadria', 'boleado', 'polimento', 'canal'].forEach(tipo => {
-      const acab = peca.acabamentos[tipo];
-      if (acab && acab.ativo) {
-        let totalMm = 0;
-        const lados = acab.lados;
-        if (lados.superior) totalMm += largura;
-        if (lados.inferior) totalMm += largura;
-        if (lados.esquerda) totalMm += altura;
-        if (lados.direita) totalMm += altura;
+      // Verificar se existe valor personalizado
+      const valorPersonalizado = peca.acabamentosPersonalizados?.[tipo];
 
-        if (totalMm > 0) {
-          const metros = totalMm / 1000;
-          const valor = metros * precos[tipo];
-          totalAcabamentos += valor;
-          detalhesAcabamentos.push({ tipo, metros: metros.toFixed(2), valor });
+      if (valorPersonalizado && parseFloat(valorPersonalizado) > 0) {
+        // Usar valor personalizado (já está em metros)
+        const metros = parseFloat(valorPersonalizado);
+        const valor = metros * precos[tipo];
+        totalAcabamentos += valor;
+        detalhesAcabamentos.push({ tipo, metros: metros.toFixed(2), valor });
+      } else {
+        // Usar cálculo tradicional pelos lados
+        const acab = peca.acabamentos[tipo];
+        if (acab && acab.ativo) {
+          let totalMm = 0;
+          const lados = acab.lados;
+          if (lados.superior) totalMm += largura;
+          if (lados.inferior) totalMm += largura;
+          if (lados.esquerda) totalMm += altura;
+          if (lados.direita) totalMm += altura;
+
+          if (totalMm > 0) {
+            const metros = totalMm / 1000;
+            const valor = metros * precos[tipo];
+            totalAcabamentos += valor;
+            detalhesAcabamentos.push({ tipo, metros: metros.toFixed(2), valor });
+          }
         }
       }
     });
@@ -124,6 +136,14 @@ export const organizarPecasEmChapas = (orcamento, materiais) => {
     const material = materiais.find(m => m.id === parseInt(materialId));
     if (!material) return;
 
+    // Obter configuração do material para este orçamento
+    const materialConfig = orcamento.materiais?.[parseInt(materialId)] || {
+      comprimento: 3000,
+      altura: 2000,
+      custo: 250,
+      venda: 333.33
+    };
+
     const pecas = pecasPorMaterial[materialId];
 
     pecas.forEach(peca => {
@@ -131,7 +151,7 @@ export const organizarPecasEmChapas = (orcamento, materiais) => {
 
       // Tentar colocar nas chapas existentes primeiro
       for (let chapa of chapas.filter(c => c.materialId === parseInt(materialId))) {
-        const pos = encontrarPosicaoNaChapa(chapa, peca, material, espacamento);
+        const pos = encontrarPosicaoNaChapa(chapa, peca, materialConfig, espacamento);
         if (pos) {
           peca.chapaId = chapa.id;
           peca.posX = pos.x;
@@ -147,7 +167,7 @@ export const organizarPecasEmChapas = (orcamento, materiais) => {
         const novaChapa = {
           id: Date.now() + Math.random(),
           materialId: parseInt(materialId),
-          material,
+          material: { ...material, ...materialConfig }, // Combinar nome do material com suas dimensões/preços
           pecas: []
         };
 
@@ -176,9 +196,9 @@ export const organizarPecasEmChapas = (orcamento, materiais) => {
  * Encontra uma posição válida para uma peça dentro de uma chapa
  * Considera rotação da peça e espaçamento entre peças
  */
-export const encontrarPosicaoNaChapa = (chapa, peca, material, espacamento) => {
-  const larguraChapa = material.comprimento;
-  const alturaChapa = material.altura;
+export const encontrarPosicaoNaChapa = (chapa, peca, materialConfig, espacamento) => {
+  const larguraChapa = materialConfig.comprimento;
+  const alturaChapa = materialConfig.altura;
 
   // Considerar rotação da peça
   const pecaLargura = peca.rotacao === 90 ? peca.altura : peca.comprimento;
@@ -237,12 +257,20 @@ export const calcularOrcamentoComDetalhes = (orcamentoAtual, materiais, precos) 
     const material = materiais.find(m => m.id === chapa.materialId);
     if (!material) return;
 
+    // Obter configuração do material para este orçamento
+    const materialConfig = orcamentoAtual.materiais?.[chapa.materialId] || {
+      comprimento: 3000,
+      altura: 2000,
+      custo: 250,
+      venda: 333.33
+    };
+
     // Contar chapas por material (para exibição)
     const key = chapa.materialId;
     chapasPorMaterial[key] = (chapasPorMaterial[key] || 0) + 1;
 
     // Calcular área total da chapa em m²
-    const areaTotalChapa = calcularAreaM2(material.comprimento, material.altura);
+    const areaTotalChapa = calcularAreaM2(materialConfig.comprimento, materialConfig.altura);
 
     // Calcular área total das peças nesta chapa
     let areaPecasM2 = 0;
@@ -256,13 +284,13 @@ export const calcularOrcamentoComDetalhes = (orcamentoAtual, materiais, precos) 
     const areaSobraM2 = areaTotalChapa - areaPecasM2;
 
     // Cobrar peças pelo preço de VENDA por m²
-    const vendaPecas = areaPecasM2 * (material.venda || material.custo);
+    const vendaPecas = areaPecasM2 * (materialConfig.venda || 333.33);
 
     // Cobrar sobra pelo preço de CUSTO por m²
-    const custoSobra = areaSobraM2 * material.custo;
+    const custoSobra = areaSobraM2 * (materialConfig.custo || 250);
 
     // Adicionar custo base das peças (necessário para cálculo de margem)
-    const custoPecas = areaPecasM2 * material.custo;
+    const custoPecas = areaPecasM2 * (materialConfig.custo || 250);
 
     // Acumular totais
     // Cliente paga: peças (preço venda) + sobra (preço custo)
@@ -299,89 +327,49 @@ export const calcularOrcamentoComDetalhes = (orcamentoAtual, materiais, precos) 
         const largura = peca.rotacao === 90 ? peca.altura : peca.comprimento;
         const altura = peca.rotacao === 90 ? peca.comprimento : peca.altura;
 
-        // Esquadria
-        if (peca.acabamentos.esquadria && peca.acabamentos.esquadria.ativo) {
-          let totalMm = 0;
-          const lados = peca.acabamentos.esquadria.lados;
-          if (lados.superior) totalMm += largura;
-          if (lados.inferior) totalMm += largura;
-          if (lados.esquerda) totalMm += altura;
-          if (lados.direita) totalMm += altura;
+        const tiposAcabamento = [
+          { tipo: 'esquadria', nome: 'Esquadria' },
+          { tipo: 'boleado', nome: 'Boleado' },
+          { tipo: 'polimento', nome: 'Polimento' },
+          { tipo: 'canal', nome: 'Canal' }
+        ];
 
-          if (totalMm > 0) {
-            const valor = (totalMm / 1000) * precos.esquadria;
+        tiposAcabamento.forEach(({ tipo, nome }) => {
+          // Verificar se existe valor personalizado
+          const valorPersonalizado = peca.acabamentosPersonalizados?.[tipo];
+
+          if (valorPersonalizado && parseFloat(valorPersonalizado) > 0) {
+            // Usar valor personalizado (já está em metros)
+            const metros = parseFloat(valorPersonalizado);
+            const valor = metros * precos[tipo];
             totalAcabamentos += valor;
             detalhesAcabamentos.push({
-              tipo: 'Esquadria',
+              tipo: nome,
               peca: nomePeca,
-              medida: `${totalMm}mm`,
+              medida: `${(metros * 1000).toFixed(0)}mm`,
               valor
             });
+          } else if (peca.acabamentos[tipo] && peca.acabamentos[tipo].ativo) {
+            // Usar cálculo tradicional pelos lados
+            let totalMm = 0;
+            const lados = peca.acabamentos[tipo].lados;
+            if (lados.superior) totalMm += largura;
+            if (lados.inferior) totalMm += largura;
+            if (lados.esquerda) totalMm += altura;
+            if (lados.direita) totalMm += altura;
+
+            if (totalMm > 0) {
+              const valor = (totalMm / 1000) * precos[tipo];
+              totalAcabamentos += valor;
+              detalhesAcabamentos.push({
+                tipo: nome,
+                peca: nomePeca,
+                medida: `${totalMm}mm`,
+                valor
+              });
+            }
           }
-        }
-
-        // Boleado
-        if (peca.acabamentos.boleado && peca.acabamentos.boleado.ativo) {
-          let totalMm = 0;
-          const lados = peca.acabamentos.boleado.lados;
-          if (lados.superior) totalMm += largura;
-          if (lados.inferior) totalMm += largura;
-          if (lados.esquerda) totalMm += altura;
-          if (lados.direita) totalMm += altura;
-
-          if (totalMm > 0) {
-            const valor = (totalMm / 1000) * precos.boleado;
-            totalAcabamentos += valor;
-            detalhesAcabamentos.push({
-              tipo: 'Boleado',
-              peca: nomePeca,
-              medida: `${totalMm}mm`,
-              valor
-            });
-          }
-        }
-
-        // Polimento
-        if (peca.acabamentos.polimento && peca.acabamentos.polimento.ativo) {
-          let totalMm = 0;
-          const lados = peca.acabamentos.polimento.lados;
-          if (lados.superior) totalMm += largura;
-          if (lados.inferior) totalMm += largura;
-          if (lados.esquerda) totalMm += altura;
-          if (lados.direita) totalMm += altura;
-
-          if (totalMm > 0) {
-            const valor = (totalMm / 1000) * precos.polimento;
-            totalAcabamentos += valor;
-            detalhesAcabamentos.push({
-              tipo: 'Polimento',
-              peca: nomePeca,
-              medida: `${totalMm}mm`,
-              valor
-            });
-          }
-        }
-
-        // Canal
-        if (peca.acabamentos.canal && peca.acabamentos.canal.ativo) {
-          let totalMm = 0;
-          const lados = peca.acabamentos.canal.lados;
-          if (lados.superior) totalMm += largura;
-          if (lados.inferior) totalMm += largura;
-          if (lados.esquerda) totalMm += altura;
-          if (lados.direita) totalMm += altura;
-
-          if (totalMm > 0) {
-            const valor = (totalMm / 1000) * precos.canal;
-            totalAcabamentos += valor;
-            detalhesAcabamentos.push({
-              tipo: 'Canal',
-              peca: nomePeca,
-              medida: `${totalMm}mm`,
-              valor
-            });
-          }
-        }
+        });
       }
 
       // Recortes (usando preços configuráveis)
@@ -447,9 +435,9 @@ export const calcularOrcamentoComDetalhes = (orcamentoAtual, materiais, precos) 
     });
   });
 
-  const margemChapas = vendaChapas - custoChapas;
-  const custoTotal = custoChapas + totalAcabamentos + totalRecortes;
-  const vendaTotal = vendaChapas + totalAcabamentos + totalRecortes;
+  const margemChapas = (vendaChapas || 0) - (custoChapas || 0);
+  const custoTotal = (custoChapas || 0) + (totalAcabamentos || 0) + (totalRecortes || 0);
+  const vendaTotal = (vendaChapas || 0) + (totalAcabamentos || 0) + (totalRecortes || 0);
   const margemTotal = vendaTotal - custoTotal;
 
   return {

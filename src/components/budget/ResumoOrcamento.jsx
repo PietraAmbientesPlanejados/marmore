@@ -25,16 +25,23 @@ export const ResumoOrcamento = ({ orcamentoAtual, materiais, precos }) => {
         </div>
         {Object.keys(orcamento.chapasPorMaterial || {}).map(materialId => {
           const material = materiais.find(m => m.id === parseInt(materialId));
+          const materialConfig = orcamento.materiais?.[parseInt(materialId)] || {
+            comprimento: 3000,
+            altura: 2000,
+            custo: 250,
+            venda: 333.33
+          };
           const qtd = orcamento.chapasPorMaterial[materialId];
-          const custoParcial = material?.custo * qtd;
-          const vendaParcial = (material?.venda || material?.custo) * qtd;
+          const areaChapa = (materialConfig.comprimento * materialConfig.altura / 1000000);
+          const custoParcial = materialConfig.custo * areaChapa * qtd;
+          const vendaParcial = materialConfig.venda * areaChapa * qtd;
           return (
             <div key={materialId} className="flex justify-between text-sm text-slate-700 pl-4 py-2 hover:bg-slate-50 rounded">
               <span className="flex-1">
                 <span className="font-medium">{material?.nome}</span>
                 <span className="text-slate-500 ml-2">
-                  ({qtd}x chapas • {material?.comprimento}x{material?.altura}mm •
-                  {((material?.comprimento * material?.altura / 1000000) * qtd).toFixed(2)}m² total)
+                  ({qtd}x chapas • {materialConfig.comprimento}x{materialConfig.altura}mm •
+                  {(areaChapa * qtd).toFixed(2)}m² total)
                 </span>
               </span>
               <div className="flex gap-6 ml-4">
@@ -44,7 +51,7 @@ export const ResumoOrcamento = ({ orcamentoAtual, materiais, precos }) => {
             </div>
           );
         })}
-        {orcamento.margemChapas > 0 && (
+        {orcamento.margemChapas > 0 && orcamento.vendaChapas > 0 && (
           <div className="mt-2 pt-2 border-t border-slate-200 flex justify-between text-sm pl-4">
             <span className="font-semibold text-slate-600">Margem das Chapas:</span>
             <span className="font-semibold text-blue-600">{formatBRL(orcamento.margemChapas)} ({((orcamento.margemChapas / orcamento.vendaChapas) * 100).toFixed(1)}%)</span>

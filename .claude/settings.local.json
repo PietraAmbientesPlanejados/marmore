@@ -18,7 +18,8 @@
       "Bash(git remote get-url:*)",
       "Bash(git push:*)",
       "Bash(gh run list:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(tasklist:*)"
     ]
   }
 }
