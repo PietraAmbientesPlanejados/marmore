@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 /**
  * Página principal do sistema
  * Exibe lista de materiais e orçamentos
@@ -5,178 +7,174 @@
 export const HomePage = ({
   materiais,
   orcamentos,
-  precos,
-  mostrarPainelPrecos,
-  precosSalvos,
   onNavigateMaterial,
   onNavigateOrcamento,
-  onTogglePainelPrecos,
-  onAtualizarPreco,
-  onSalvarPrecos,
-  onExcluirMaterial
+  onExcluirMaterial,
+  onExcluirOrcamento,
+  onDuplicarOrcamento,
+  calcularOrcamento,
+  formatBRL
 }) => {
+  const [buscaOrcamento, setBuscaOrcamento] = useState('');
+
+  // Filtrar orçamentos com base na busca
+  const orcamentosFiltrados = orcamentos.filter(orc =>
+    orc.nome.toLowerCase().includes(buscaOrcamento.toLowerCase())
+  );
+
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
-      {/* Painel de Preços (colapsável) */}
-      <div className="bg-white rounded-2xl shadow-lg border border-slate-200">
-        <button
-          onClick={onTogglePainelPrecos}
-          className="w-full flex items-center justify-between p-6 hover:bg-slate-50 transition-colors rounded-2xl"
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">⚙️</span>
-            <h2 className="text-2xl font-bold text-slate-800">Configuração de Preços</h2>
+      {/* Grid de 2 colunas */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Card de Orçamentos */}
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200 min-h-[calc(100vh-200px)] flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-slate-800">Orçamentos</h2>
+            <button
+              onClick={() => onNavigateOrcamento('novo')}
+              className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              + Novo
+            </button>
           </div>
-          <span className="text-2xl text-slate-400">
-            {mostrarPainelPrecos ? '▼' : '▶'}
-          </span>
-        </button>
 
-        {mostrarPainelPrecos && (
-          <div className="p-6 pt-0 border-t border-slate-100">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {/* Acabamentos */}
-              <div>
-                <h3 className="font-bold text-lg mb-3 text-blue-600">📐 Acabamentos (por metro linear)</h3>
-                <div className="space-y-3">
-                  {Object.entries(precos).filter(([key]) => ['polimento', 'esquadria', 'boleado', 'canal'].includes(key)).map(([key, value]) => (
-                    <div key={key} className="flex items-center gap-3">
-                      <label className="flex-1 capitalize font-medium text-slate-700">{key}:</label>
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500">R$</span>
-                        <input
-                          type="number"
-                          value={value}
-                          onChange={(e) => onAtualizarPreco(key, e.target.value)}
-                          className="w-24 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          step="0.01"
-                        />
+          {/* Campo de Busca */}
+          <div className="mb-4">
+            <input
+              type="text"
+              placeholder="🔍 Buscar orçamento..."
+              value={buscaOrcamento}
+              onChange={(e) => setBuscaOrcamento(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400 transition-all"
+            />
+          </div>
+
+          {/* Lista de Orçamentos */}
+          <div className="flex-1 overflow-y-auto">
+            {orcamentosFiltrados.length === 0 ? (
+              <div className="text-center py-12 text-slate-400">
+                <p className="text-sm">
+                  {buscaOrcamento ? 'Nenhum orçamento encontrado' : 'Nenhum orçamento criado'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {orcamentosFiltrados.map(orc => {
+                  const totalPecas = orc.ambientes.reduce((sum, amb) => sum + amb.pecas.length, 0);
+                  const orcCalc = calcularOrcamento(orc);
+                  return (
+                    <div
+                      key={orc.id}
+                      onClick={() => onNavigateOrcamento('abrir', orc.id)}
+                      className="border border-slate-200 rounded-lg p-4 hover:border-slate-400 hover:shadow-sm transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-medium text-slate-800 group-hover:text-slate-900">
+                            {orc.nome || `Orçamento #${String(orc.id).slice(-6)}`}
+                          </h3>
+                          <p className="text-xs text-slate-500 mt-1">
+                            📅 {orc.data}
+                          </p>
+                          <div className="flex gap-3 mt-2 text-xs text-slate-600">
+                            <span>🏠 {orc.ambientes.length} ambientes</span>
+                            <span>📦 {totalPecas} peças</span>
+                            <span>📄 {orc.chapas.length} chapas</span>
+                          </div>
+                        </div>
+                        <div className="text-right ml-4">
+                          <div className="space-y-1">
+                            <div>
+                              <p className="text-xs text-slate-500 uppercase">Custo</p>
+                              <p className="text-sm font-bold text-orange-600">
+                                {formatBRL(orcCalc.custoTotal)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-slate-500 uppercase">Venda</p>
+                              <p className="text-lg font-bold text-green-600">
+                                {formatBRL(orcCalc.vendaTotal)}
+                              </p>
+                            </div>
+                            <div className="pt-1 border-t border-slate-300">
+                              <p className="text-xs text-slate-600 font-semibold">
+                                💰 Lucro: {formatBRL(orcCalc.margemTotal)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 mt-3">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDuplicarOrcamento(orc.id);
+                              }}
+                              className="flex-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs transition-colors border border-blue-200"
+                              title="Duplicar orçamento"
+                            >
+                              📋 Duplicar
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onExcluirOrcamento(orc.id);
+                              }}
+                              className="flex-1 text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs transition-colors border border-red-200"
+                              title="Excluir orçamento"
+                            >
+                              🗑️ Excluir
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
+            )}
+          </div>
+        </div>
 
-              {/* Recortes */}
-              <div>
-                <h3 className="font-bold text-lg mb-3 text-green-600">✂️ Recortes (por unidade)</h3>
-                <div className="space-y-3">
-                  {Object.entries(precos).filter(([key]) => ['pia', 'cubaEsculpida', 'cooktop', 'recorte', 'pes'].includes(key)).map(([key, value]) => (
-                    <div key={key} className="flex items-center gap-3">
-                      <label className="flex-1 capitalize font-medium text-slate-700">
-                        {key === 'pia' ? 'Cuba' : key === 'cubaEsculpida' ? 'Cuba Esculpida' : key === 'pes' ? 'Pés' : key}:
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500">R$</span>
-                        <input
-                          type="number"
-                          value={value}
-                          onChange={(e) => onAtualizarPreco(key, e.target.value)}
-                          className="w-24 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                          step="0.01"
-                        />
-                      </div>
+        {/* Card de Materiais */}
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200 min-h-[calc(100vh-200px)] flex flex-col">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-slate-800">Materiais</h2>
+            <button
+              onClick={() => onNavigateMaterial('novo')}
+              className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              + Novo
+            </button>
+          </div>
+
+          {/* Lista de Materiais */}
+          <div className="flex-1 overflow-y-auto">
+            {materiais.length === 0 ? (
+              <div className="text-center py-12 text-slate-400">
+                <p className="text-sm">Nenhum material cadastrado</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2">
+                {materiais.map(material => (
+                  <div
+                    key={material.id}
+                    className="border border-slate-200 rounded-lg p-4 hover:border-slate-400 transition-all group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-slate-800">{material.nome}</h3>
+                      <button
+                        onClick={() => onExcluirMaterial(material.id)}
+                        className="text-slate-400 hover:text-red-600 text-sm transition-colors opacity-0 group-hover:opacity-100"
+                        title="Excluir"
+                      >
+                        Excluir
+                      </button>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Botão Salvar */}
-            <div className="flex items-center justify-between pt-4 border-t border-slate-200">
-              <p className="text-sm text-slate-600">
-                💡 <strong>Dica:</strong> Estes valores serão usados automaticamente em todos os orçamentos. Clique em "Salvar" para confirmar!
-              </p>
-              <button
-                onClick={onSalvarPrecos}
-                className={`px-6 py-3 rounded-lg font-bold transition-all ${
-                  precosSalvos
-                    ? 'bg-green-500 text-white'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
-                }`}
-              >
-                {precosSalvos ? '✓ Salvo!' : '💾 Salvar Preços'}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Card de Materiais */}
-      <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">📦</span>
-            <h2 className="text-2xl font-bold text-slate-800">Materiais Cadastrados</h2>
-          </div>
-          <button
-            onClick={() => onNavigateMaterial('novo')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-          >
-            ➕ Novo Material
-          </button>
-        </div>
-
-        {materiais.length === 0 ? (
-          <p className="text-center text-slate-500 py-8">Nenhum material cadastrado ainda.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {materiais.map(material => (
-              <div
-                key={material.id}
-                className="border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow bg-gradient-to-br from-white to-slate-50"
-              >
-                <h3 className="font-bold text-lg mb-3 text-slate-800">{material.nome}</h3>
-                <button
-                  onClick={() => onExcluirMaterial(material.id)}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg text-sm font-medium transition-colors"
-                >
-                  🗑️ Excluir
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Card de Orçamentos */}
-      <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">📄</span>
-            <h2 className="text-2xl font-bold text-slate-800">Orçamentos</h2>
-          </div>
-          <button
-            onClick={() => onNavigateOrcamento('novo')}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-          >
-            ➕ Novo Orçamento
-          </button>
-        </div>
-
-        {orcamentos.length === 0 ? (
-          <p className="text-center text-slate-500 py-8">Nenhum orçamento criado ainda.</p>
-        ) : (
-          <div className="space-y-3">
-            {orcamentos.map(orc => (
-              <div
-                key={orc.id}
-                onClick={() => onNavigateOrcamento('abrir', orc.id)}
-                className="border border-slate-200 rounded-xl p-4 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer bg-gradient-to-r from-white to-blue-50"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-lg text-slate-800">{orc.nome}</h3>
-                    <p className="text-sm text-slate-600">
-                      {orc.ambientes?.length || 0} ambiente(s) • {orc.chapas?.length || 0} chapa(s)
-                    </p>
                   </div>
-                  <span className="text-2xl">→</span>
-                </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

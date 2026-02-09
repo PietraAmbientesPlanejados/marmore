@@ -1077,20 +1077,20 @@ const SistemaOrcamentoMarmore = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+    <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Header Moderno */}
-        <header className={`bg-gradient-to-r from-slate-800 to-slate-900 shadow-xl border border-slate-700 ${tela === 'orcamento' && orcamentoAtual ? 'rounded-t-2xl mb-0' : 'rounded-2xl mb-8'}`}>
-          <div className="p-8">
+        {/* Header */}
+        <header className={`bg-slate-800 shadow-md border border-slate-700 ${tela === 'orcamento' && orcamentoAtual ? 'rounded-t-xl mb-0' : 'rounded-xl mb-8'}`}>
+          <div className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-                  <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
-                    <Grid size={28} className="text-white" />
+                <h1 className="text-2xl font-semibold text-white mb-1 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center border border-slate-600">
+                    <Grid size={20} className="text-slate-300" />
                   </div>
                   Sistema de Orçamento
                 </h1>
-                <p className="text-slate-300 text-lg">Mármore & Granito - Gestão Profissional</p>
+                <p className="text-slate-400 text-sm">Mármore & Granito - Gestão Profissional</p>
               </div>
             </div>
           </div>
@@ -1672,140 +1672,59 @@ const SistemaOrcamentoMarmore = () => {
         {/* Modal de Visualização de Etiquetas */}
         {/* Menu Principal - Design Moderno */}
         {tela === 'lista' && (
-          <div className="space-y-8">
-            
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Card Orçamentos - Redesenhado */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-shadow duration-300">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                      <FileText size={20} className="text-white" />
-                    </div>
-                    <h2 className="text-xl font-bold text-slate-800">Orçamentos</h2>
-                  </div>
-                  <button
-                    onClick={abrirModalNovoOrcamento}
-                    className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2.5 rounded-xl hover:shadow-lg transition-all duration-200 font-medium"
-                  >
-                    <PlusCircle size={18} />
-                    Novo
-                  </button>
-                </div>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {orcamentos.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <FileText size={32} className="text-slate-400" />
-                      </div>
-                      <p className="text-slate-500">Nenhum orçamento criado ainda</p>
-                    </div>
-                  ) : (
-                    orcamentos.map(orc => {
-                      const totalPecas = orc.ambientes.reduce((sum, amb) => sum + amb.pecas.length, 0);
-                      const orcCalc = calcularOrcamentoComDetalhes(orc, materiais, orc.precos || PRECOS_PADRAO);
-                      return (
-                        <div 
-                          key={orc.id} 
-                          className="bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-4 hover:shadow-md transition-all duration-200 cursor-pointer"
-                          onClick={() => {
-                            setOrcamentoAtual(orc);
-                            setTela('orcamento');
-                          }}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <p className="font-bold text-slate-800 text-lg">{orc.nome || `Orçamento #${String(orc.id).slice(-6)}`}</p>
-                              <p className="text-xs text-slate-500 mt-1">📅 {orc.data}</p>
-                              <div className="flex gap-4 mt-2 text-xs text-slate-600">
-                                <span>🏠 {orc.ambientes.length} ambientes</span>
-                                <span>📦 {totalPecas} peças</span>
-                                <span>📄 {orc.chapas.length} chapas</span>
-                              </div>
-                            </div>
-                            <div className="text-right ml-4">
-                              <div className="space-y-1">
-                                <div>
-                                  <p className="text-xs text-slate-500 uppercase">Custo</p>
-                                  <p className="text-lg font-bold text-orange-600">
-                                    {formatBRL(orcCalc.custoTotal)}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-slate-500 uppercase">Venda</p>
-                                  <p className="text-2xl font-bold text-green-600">
-                                    {formatBRL(orcCalc.vendaTotal)}
-                                  </p>
-                                </div>
-                                <div className="pt-1 border-t border-slate-300">
-                                  <p className="text-xs text-blue-600 font-semibold">
-                                    💰 Lucro: {formatBRL(orcCalc.margemTotal)}
-                                  </p>
-                                </div>
-                              </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (window.confirm('Deseja realmente excluir este orçamento?')) {
-                                    setOrcamentos(orcamentos.filter(o => o.id !== orc.id));
-                                  }
-                                }}
-                                className="mt-3 text-red-600 hover:bg-red-50 px-3 py-1 rounded-lg text-xs flex items-center gap-1 transition-colors"
-                              >
-                                <Trash2 size={14} />
-                                Excluir
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              {/* Card Materiais - Redesenhado */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-shadow duration-300">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
-                      <Package size={20} className="text-white" />
-                    </div>
-                    <h2 className="text-xl font-bold text-slate-800">Materiais</h2>
-                  </div>
-                  <button
-                    onClick={() => setTela('novo-material')}
-                    className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2.5 rounded-xl hover:shadow-lg transition-all duration-200 font-medium"
-                  >
-                    <PlusCircle size={18} />
-                    Novo
-                  </button>
-                </div>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {materiais.map(mat => (
-                    <div key={mat.id} className="bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-4 hover:shadow-md transition-all duration-200">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-slate-800 text-lg">{mat.nome}</h3>
-                        </div>
-                        <button
-                          onClick={() => {
-                            if (window.confirm('Deseja realmente excluir este material?')) {
-                              excluirMaterial(mat.id);
-                            }
-                          }}
-                          className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
-                          title="Excluir material"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+          <HomePage
+            materiais={materiais}
+            orcamentos={orcamentos}
+            onNavigateMaterial={(acao) => setTela('novo-material')}
+            onNavigateOrcamento={(acao, orcId) => {
+              if (acao === 'novo') {
+                abrirModalNovoOrcamento();
+              } else if (acao === 'abrir') {
+                const orc = orcamentos.find(o => o.id === orcId);
+                if (orc) {
+                  setOrcamentoAtual(orc);
+                  setTela('orcamento');
+                }
+              }
+            }}
+            onExcluirMaterial={(matId) => {
+              if (window.confirm('Deseja realmente excluir este material?')) {
+                excluirMaterial(matId);
+              }
+            }}
+            onExcluirOrcamento={(orcId) => {
+              if (window.confirm('Deseja realmente excluir este orçamento?')) {
+                setOrcamentos(orcamentos.filter(o => o.id !== orcId));
+              }
+            }}
+            onDuplicarOrcamento={(orcId) => {
+              const orcOriginal = orcamentos.find(o => o.id === orcId);
+              if (orcOriginal) {
+                const novoOrc = {
+                  ...orcOriginal,
+                  id: Date.now(),
+                  nome: `${orcOriginal.nome} (Cópia)`,
+                  data: new Date().toLocaleDateString('pt-BR'),
+                  ambientes: orcOriginal.ambientes.map(amb => ({
+                    ...amb,
+                    id: Date.now() + Math.random(),
+                    pecas: amb.pecas.map(peca => ({
+                      ...peca,
+                      id: Date.now() + Math.random()
+                    }))
+                  })),
+                  chapas: orcOriginal.chapas.map(chapa => ({
+                    ...chapa,
+                    id: Date.now() + Math.random()
+                  }))
+                };
+                setOrcamentos([...orcamentos, novoOrc]);
+                alert('✅ Orçamento duplicado com sucesso!');
+              }
+            }}
+            calcularOrcamento={(orc) => calcularOrcamentoComDetalhes(orc, materiais, orc.precos || PRECOS_PADRAO)}
+            formatBRL={formatBRL}
+          />
         )}
 
         {/* Cadastro de Material */}
@@ -1927,7 +1846,7 @@ const SistemaOrcamentoMarmore = () => {
 
         {/* Tela de Orçamento */}
         {tela === 'orcamento' && orcamentoAtual && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="bg-white rounded-lg shadow-sm p-6">
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-1">
@@ -2373,40 +2292,40 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden" style={{ position: 'relative', zIndex: 1 }}>
       <div
-        className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 cursor-pointer hover:from-gray-100 hover:to-gray-200 transition-all"
+        className="bg-slate-50 p-4 cursor-pointer hover:bg-slate-100 transition-all border-b border-slate-200"
         onClick={() => setExpandido(!expandido)}
       >
         {/* Cabeçalho */}
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-gray-800">{ambiente.nome}</h3>
-          <span className="text-sm text-gray-600">{ambiente.pecas.length} peças • {subtotais.area.toFixed(2)}m²</span>
+          <h3 className="text-base font-semibold text-slate-800">{ambiente.nome}</h3>
+          <span className="text-xs text-slate-500">{ambiente.pecas.length} peças • {subtotais.area.toFixed(2)}m²</span>
         </div>
 
         {/* Resumo no Card Fechado */}
         {ambiente.pecas.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-white rounded-lg p-2 border border-green-200">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="bg-white rounded p-2 border border-slate-200">
               <div className="text-xs text-slate-500">Material</div>
-              <div className="text-sm font-bold text-green-700">{formatBRL(subtotais.material)}</div>
+              <div className="text-sm font-semibold text-slate-700">{formatBRL(subtotais.material)}</div>
             </div>
-            <div className="bg-white rounded-lg p-2 border border-blue-200">
+            <div className="bg-white rounded p-2 border border-slate-200">
               <div className="text-xs text-slate-500">Acabamentos</div>
-              <div className="text-sm font-bold text-blue-700">{formatBRL(subtotais.acabamentos)}</div>
+              <div className="text-sm font-semibold text-slate-700">{formatBRL(subtotais.acabamentos)}</div>
             </div>
-            <div className="bg-white rounded-lg p-2 border border-purple-200">
+            <div className="bg-white rounded p-2 border border-slate-200">
               <div className="text-xs text-slate-500">Recortes</div>
-              <div className="text-sm font-bold text-purple-700">{formatBRL(subtotais.recortes)}</div>
+              <div className="text-sm font-semibold text-slate-700">{formatBRL(subtotais.recortes)}</div>
             </div>
-            <div className="bg-white rounded-lg p-2 border-2 border-slate-400">
+            <div className="bg-white rounded p-2 border border-slate-300">
               <div className="text-xs text-slate-500">Total</div>
-              <div className="text-base font-bold text-slate-800">{formatBRL(subtotais.total)}</div>
+              <div className="text-sm font-bold text-slate-900">{formatBRL(subtotais.total)}</div>
             </div>
           </div>
         )}
       </div>
 
       {expandido && (
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-4 max-h-[600px] overflow-y-auto">
           {/* Lista de Peças */}
           {ambiente.pecas.map(peca => {
             const material = materiais.find(m => m.id === peca.materialId);
@@ -2475,22 +2394,22 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
                   
                   {/* Informações da peça */}
                   <div className="flex-1">
-                    <h4 className="font-semibold text-gray-800 mb-2">{peca.nome || 'Sem nome'}</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                    <h4 className="font-semibold text-gray-800 mb-2 text-base">{peca.nome || 'Sem nome'}</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                       <div>
-                        <p className="text-gray-500 text-xs">Dimensões</p>
-                        <p className="font-medium text-xs">{peca.comprimento} x {peca.altura} mm</p>
+                        <p className="text-gray-500 text-sm">Dimensões</p>
+                        <p className="font-medium text-sm">{peca.comprimento} x {peca.altura} mm</p>
                       </div>
                       <div>
-                        <p className="text-gray-500 text-xs">Material</p>
-                        <p className="font-medium text-xs">{material?.nome}</p>
+                        <p className="text-gray-500 text-sm">Material</p>
+                        <p className="font-medium text-sm">{material?.nome}</p>
                       </div>
                       <div>
-                        <p className="text-gray-500 text-xs">Chapa</p>
-                        <p className="font-medium text-xs">#{peca.chapaId ? String(peca.chapaId).slice(-4) : 'N/A'}</p>
+                        <p className="text-gray-500 text-sm">Chapa</p>
+                        <p className="font-medium text-sm">#{peca.chapaId ? String(peca.chapaId).slice(-4) : 'N/A'}</p>
                       </div>
                     </div>
-                    
+
                     {/* Acabamentos aplicados */}
                     {peca.acabamentos && Object.values(peca.acabamentos).some(a => a.ativo) && (
                       <div className="mt-2 flex flex-wrap gap-1">
@@ -2504,7 +2423,7 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
                             canal: 'bg-orange-100 text-orange-700'
                           };
                           return (
-                            <span key={tipo} className={`text-xs px-2 py-0.5 rounded ${cores[tipo]}`}>
+                            <span key={tipo} className={`text-sm px-2 py-1 rounded ${cores[tipo]}`}>
                               {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
                             </span>
                           );
@@ -2514,7 +2433,7 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
 
                     {/* Custos Detalhados da Peça */}
                     <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
                           <span className="text-gray-500">Área:</span>
                           <span className="font-semibold text-gray-800 ml-1">{custosPeca.area.toFixed(2)}m²</span>
@@ -2537,8 +2456,8 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
                         )}
                       </div>
                       <div className="mt-2 pt-2 border-t border-gray-300 flex justify-between items-center">
-                        <span className="text-xs font-bold text-gray-700">Total da Peça:</span>
-                        <span className="text-sm font-bold text-green-600">{formatBRL(custosPeca.total)}</span>
+                        <span className="text-sm font-bold text-gray-700">Total da Peça:</span>
+                        <span className="text-base font-bold text-green-600">{formatBRL(custosPeca.total)}</span>
                       </div>
 
                       {/* Detalhes expandíveis de acabamentos e recortes */}
