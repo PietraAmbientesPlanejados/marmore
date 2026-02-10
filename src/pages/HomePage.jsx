@@ -23,16 +23,16 @@ export const HomePage = ({
   );
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
-      {/* Grid de 2 colunas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Card de Orçamentos */}
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200 min-h-[calc(100vh-200px)] flex flex-col">
+    <div className="space-y-6">
+      {/* Grid com proporção 2:1 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Card de Orçamentos - Ocupa 2 colunas */}
+        <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-6 border border-slate-200 min-h-[calc(100vh-200px)] flex flex-col">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-slate-800">Orçamentos</h2>
+            <h2 className="text-2xl font-bold text-slate-800">Orçamentos</h2>
             <button
               onClick={() => onNavigateOrcamento('novo')}
-              className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-lg hover:shadow-slate-500/50 hover:scale-105 active:scale-95"
             >
               + Novo
             </button>
@@ -68,62 +68,57 @@ export const HomePage = ({
                       onClick={() => onNavigateOrcamento('abrir', orc.id)}
                       className="border border-slate-200 rounded-lg p-4 hover:border-slate-400 hover:shadow-sm transition-all cursor-pointer group"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-medium text-slate-800 group-hover:text-slate-900">
+                      <div className="flex items-start justify-between gap-4">
+                        {/* Nome e informações */}
+                        <div className="flex-1 flex flex-col">
+                          <h3 className="text-2xl font-bold text-slate-800 group-hover:text-slate-900">
                             {orc.nome || `Orçamento #${String(orc.id).slice(-6)}`}
                           </h3>
-                          <p className="text-xs text-slate-500 mt-1">
-                            📅 {orc.data}
-                          </p>
-                          <div className="flex gap-3 mt-2 text-xs text-slate-600">
+                          <div className="flex gap-3 text-xs text-slate-500 mt-auto">
                             <span>🏠 {orc.ambientes.length} ambientes</span>
                             <span>📦 {totalPecas} peças</span>
                             <span>📄 {orc.chapas.length} chapas</span>
                           </div>
                         </div>
-                        <div className="text-right ml-4">
-                          <div className="space-y-1">
-                            <div>
-                              <p className="text-xs text-slate-500 uppercase">Custo</p>
-                              <p className="text-sm font-bold text-orange-600">
-                                {formatBRL(orcCalc.custoTotal)}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-slate-500 uppercase">Venda</p>
-                              <p className="text-lg font-bold text-green-600">
-                                {formatBRL(orcCalc.vendaTotal)}
-                              </p>
-                            </div>
-                            <div className="pt-1 border-t border-slate-300">
-                              <p className="text-xs text-slate-600 font-semibold">
-                                💰 Lucro: {formatBRL(orcCalc.margemTotal)}
-                              </p>
-                            </div>
+
+                        {/* Valores */}
+                        <div className="text-right">
+                          <div className="mb-2">
+                            <p className="text-xs text-slate-500 uppercase">Custo</p>
+                            <p className="text-sm font-bold text-orange-600">
+                              {formatBRL(orcCalc.custoTotal)}
+                            </p>
                           </div>
-                          <div className="flex gap-2 mt-3">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDuplicarOrcamento(orc.id);
-                              }}
-                              className="flex-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs transition-colors border border-blue-200"
-                              title="Duplicar orçamento"
-                            >
-                              📋 Duplicar
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onExcluirOrcamento(orc.id);
-                              }}
-                              className="flex-1 text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs transition-colors border border-red-200"
-                              title="Excluir orçamento"
-                            >
-                              🗑️ Excluir
-                            </button>
+                          <div>
+                            <p className="text-xs text-slate-500 uppercase">Venda</p>
+                            <p className="text-lg font-bold text-green-600">
+                              {formatBRL(orcCalc.vendaTotal)}
+                            </p>
                           </div>
+                        </div>
+
+                        {/* Botões de ação */}
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDuplicarOrcamento(orc.id);
+                            }}
+                            className="text-slate-600 hover:text-slate-800 hover:bg-slate-100 px-4 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap border border-slate-300"
+                            title="Duplicar orçamento"
+                          >
+                            Duplicar
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onExcluirOrcamento(orc.id);
+                            }}
+                            className="text-slate-600 hover:text-slate-800 hover:bg-slate-100 px-4 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap border border-slate-300"
+                            title="Excluir orçamento"
+                          >
+                            Excluir
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -137,10 +132,10 @@ export const HomePage = ({
         {/* Card de Materiais */}
         <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200 min-h-[calc(100vh-200px)] flex flex-col">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-slate-800">Materiais</h2>
+            <h2 className="text-2xl font-bold text-slate-800">Materiais</h2>
             <button
               onClick={() => onNavigateMaterial('novo')}
-              className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-lg hover:shadow-slate-500/50 hover:scale-105 active:scale-95"
             >
               + Novo
             </button>
