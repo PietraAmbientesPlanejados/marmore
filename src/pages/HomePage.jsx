@@ -66,9 +66,9 @@ export const HomePage = ({
                     <div
                       key={orc.id}
                       onClick={() => onNavigateOrcamento('abrir', orc.id)}
-                      className="border border-slate-200 rounded-lg p-4 hover:border-slate-400 hover:shadow-sm transition-all cursor-pointer group"
+                      className="border border-slate-200 rounded-lg px-4 py-2 hover:border-slate-400 hover:shadow-sm transition-all cursor-pointer group"
                     >
-                      <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-stretch justify-between gap-4">
                         {/* Nome e informações */}
                         <div className="flex-1 flex flex-col">
                           <h3 className="text-2xl font-bold text-slate-800 group-hover:text-slate-900">
@@ -85,7 +85,7 @@ export const HomePage = ({
                         <div className="text-right">
                           <div className="mb-2">
                             <p className="text-xs text-slate-500 uppercase">Custo</p>
-                            <p className="text-sm font-bold text-orange-600">
+                            <p className="text-lg font-bold text-orange-600">
                               {formatBRL(orcCalc.custoTotal)}
                             </p>
                           </div>
@@ -98,26 +98,30 @@ export const HomePage = ({
                         </div>
 
                         {/* Botões de ação */}
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col justify-center gap-1">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               onDuplicarOrcamento(orc.id);
                             }}
-                            className="text-slate-600 hover:text-slate-800 hover:bg-slate-100 px-4 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap border border-slate-300"
+                            className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-1.5 rounded transition-colors"
                             title="Duplicar orçamento"
                           >
-                            Duplicar
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
                           </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               onExcluirOrcamento(orc.id);
                             }}
-                            className="text-slate-600 hover:text-slate-800 hover:bg-slate-100 px-4 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap border border-slate-300"
+                            className="text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded transition-colors"
                             title="Excluir orçamento"
                           >
-                            Excluir
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
                           </button>
                         </div>
                       </div>

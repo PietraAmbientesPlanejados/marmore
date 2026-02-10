@@ -303,6 +303,7 @@ export const calcularOrcamentoComDetalhes = (orcamentoAtual, materiais, precos) 
       chapaId: chapa.id,
       materialId: material.id,
       materialNome: material.nome,
+      numPecas: chapa.pecas.length,
       areaTotal: areaTotalChapa,
       areaPecas: areaPecasM2,
       areaSobra: areaSobraM2,

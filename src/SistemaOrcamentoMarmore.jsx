@@ -7,6 +7,7 @@ import { usePrecos } from './hooks/usePrecos';
 import { useMaterials } from './hooks/useMaterials';
 import { useBudgets } from './hooks/useBudgets';
 import { HomePage } from './pages/HomePage';
+import logoImg from '/logo.png';
 import { MaterialFormPage } from './pages/MaterialFormPage';
 
 // Ícones (emoji fallback)
@@ -1083,8 +1084,8 @@ const SistemaOrcamentoMarmore = () => {
       <header className={`bg-slate-800 shadow-md border-b border-slate-700 ${tela === 'orcamento' && orcamentoAtual ? 'mb-0' : 'mb-4'}`}>
         <div className="px-6 py-4">
           <div className="flex items-center gap-3 group cursor-default">
-            <div className="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center border border-slate-600 transition-all duration-500 group-hover:rotate-180 group-hover:bg-slate-600 group-hover:scale-110">
-              <Grid size={20} className="text-slate-300 group-hover:text-white" />
+            <div className="w-14 h-14 rounded-lg overflow-hidden border border-slate-600 transition-all duration-500 group-hover:rotate-180 group-hover:scale-110">
+              <img src={logoImg} alt="Pietra" className="w-full h-full object-cover" />
             </div>
             <div>
               <h1 className="text-2xl font-semibold text-white mb-1 transition-all duration-300 group-hover:bg-gradient-to-r group-hover:from-slate-200 group-hover:via-white group-hover:to-slate-200 group-hover:bg-clip-text group-hover:text-transparent group-hover:scale-105">
@@ -1117,8 +1118,7 @@ const SistemaOrcamentoMarmore = () => {
                   }}
                   className="flex-1 flex items-center justify-center gap-2 bg-slate-700 text-white px-4 py-3 hover:bg-slate-800 font-medium transition-all border-r border-slate-600"
                 >
-                  <Home size={18} />
-                  <span>Início</span>
+                  Início
                 </button>
 
                 <button
@@ -1128,8 +1128,7 @@ const SistemaOrcamentoMarmore = () => {
                   }}
                   className="flex-1 flex items-center justify-center gap-2 bg-slate-700 text-white px-4 py-3 hover:bg-slate-800 font-medium transition-all border-r border-slate-600"
                 >
-                  <Grid size={18} />
-                  <span>Plano de Corte</span>
+                  Plano de Corte
                 </button>
 
                 <button
@@ -1139,8 +1138,7 @@ const SistemaOrcamentoMarmore = () => {
                   }}
                   className="flex-1 flex items-center justify-center gap-2 bg-slate-700 text-white px-4 py-3 hover:bg-slate-800 font-medium transition-all border-r border-slate-600"
                 >
-                  <Printer size={18} />
-                  <span>Gerar Etiquetas</span>
+                  Gerar Etiquetas
                 </button>
 
                 <button
@@ -1150,8 +1148,7 @@ const SistemaOrcamentoMarmore = () => {
                   }}
                   className="flex-1 flex items-center justify-center gap-2 bg-slate-700 text-white px-4 py-3 hover:bg-slate-800 font-medium transition-all border-r border-slate-600"
                 >
-                  <span className="text-lg">💰</span>
-                  <span>Configurar Preços</span>
+                  Configurar Preços
                 </button>
 
                 <button
@@ -1161,8 +1158,7 @@ const SistemaOrcamentoMarmore = () => {
                   }}
                   className="flex-1 flex items-center justify-center gap-2 bg-slate-700 text-white px-4 py-3 hover:bg-slate-800 font-medium transition-all"
                 >
-                  <Package size={18} />
-                  <span>Configurar Materiais</span>
+                  Configurar Materiais
                 </button>
               </div>
             </div>
@@ -1176,47 +1172,46 @@ const SistemaOrcamentoMarmore = () => {
         {/* Modal Novo Orçamento - Design Moderno */}
         {mostrarModalNovoOrcamento && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 border border-slate-200">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                  <PlusCircle size={24} className="text-white" />
+            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 border border-slate-200 overflow-hidden">
+              <div className="bg-slate-800 px-6 py-4">
+                <h2 className="text-2xl font-bold text-white">Novo Orçamento</h2>
+              </div>
+              <div className="p-6">
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Nome do Orçamento
+                  </label>
+                  <input
+                    type="text"
+                    value={nomeNovoOrcamento}
+                    onChange={(e) => setNomeNovoOrcamento(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        confirmarCriacaoOrcamento();
+                      }
+                    }}
+                    className="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400 transition-all"
+                    placeholder="Ex: Cliente João Silva - Cozinha"
+                    autoFocus
+                  />
                 </div>
-                <h2 className="text-2xl font-bold text-slate-800">Novo Orçamento</h2>
-              </div>
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Nome do Orçamento
-                </label>
-                <input
-                  type="text"
-                  value={nomeNovoOrcamento}
-                  onChange={(e) => setNomeNovoOrcamento(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      confirmarCriacaoOrcamento();
-                    }
-                  }}
-                  className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 focus:border-blue-500 focus:outline-none transition-colors"
-                  placeholder="Ex: Cliente João Silva - Cozinha"
-                  autoFocus
-                />
-              </div>
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => {
-                    fecharModalNovoOrcamento();
-                    setNomeNovoOrcamento('');
-                  }}
-                  className="px-6 py-3 border-2 border-slate-200 rounded-xl hover:bg-slate-50 transition-all duration-200 font-medium text-slate-700"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={confirmarCriacaoOrcamento}
-                  className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 font-semibold"
-                >
-                  Criar Orçamento
-                </button>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => {
+                      fecharModalNovoOrcamento();
+                      setNomeNovoOrcamento('');
+                    }}
+                    className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium text-slate-700"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmarCriacaoOrcamento}
+                    className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-lg hover:shadow-slate-500/50 hover:scale-105 active:scale-95"
+                  >
+                    Criar Orçamento
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1224,16 +1219,16 @@ const SistemaOrcamentoMarmore = () => {
 
         {/* Modal Detalhes da Peça */}
         {mostrandoDetalhePeca && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4" onClick={() => {
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4" onClick={() => {
             setMostrandoDetalhePeca(null);
             setModoEdicaoPeca(false);
             setPecaEditada(null);
           }}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl border border-slate-200 max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-              {/* Header Simplificado */}
-              <div className="bg-gradient-to-r from-slate-700 to-slate-800 p-4 flex items-center justify-between flex-shrink-0">
-                <h3 className="text-xl font-bold text-white">
-                  {modoEdicaoPeca ? '✏️ Editando' : '👁️ Visualizando'}: {mostrandoDetalhePeca.nome || 'Peça'}
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl border border-slate-200 max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+              {/* Header */}
+              <div className="bg-slate-800 px-6 py-4 flex items-center justify-between flex-shrink-0">
+                <h3 className="text-lg font-bold text-white">
+                  {modoEdicaoPeca ? 'Editando' : ''} {mostrandoDetalhePeca.nome || 'Peça'}
                 </h3>
                 <button
                   onClick={() => {
@@ -1241,9 +1236,9 @@ const SistemaOrcamentoMarmore = () => {
                     setModoEdicaoPeca(false);
                     setPecaEditada(null);
                   }}
-                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl font-bold transition-all"
+                  className="text-slate-300 hover:text-white transition-colors text-xl font-bold"
                 >
-                  ✖ FECHAR
+                  &times;
                 </button>
               </div>
 
@@ -1293,20 +1288,20 @@ const SistemaOrcamentoMarmore = () => {
                       setPecaEditada(copia);
                       setModoEdicaoPeca(true);
                     }}
-                    className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white p-4 rounded-xl font-bold text-lg shadow-lg transition-all transform hover:scale-105"
+                    className="w-full bg-slate-700 hover:bg-slate-800 text-white px-4 py-2.5 rounded-lg font-medium text-sm transition-all hover:shadow-lg hover:shadow-slate-500/50 hover:scale-105 active:scale-95"
                   >
-                    ✏️ CLIQUE AQUI PARA EDITAR ESTA PEÇA
+                    Editar Peça
                   </button>
                 ) : (
-                  <div className="bg-yellow-100 border-2 border-yellow-500 rounded-xl p-3 text-center">
-                    <p className="text-yellow-900 font-bold">✏️ MODO EDIÇÃO - Altere os campos abaixo</p>
+                  <div className="bg-slate-100 border border-slate-300 rounded-lg px-4 py-2 text-center">
+                    <p className="text-slate-700 font-medium text-sm">Modo Edição</p>
                   </div>
                 )}
 
                 {/* Informações Gerais - COMPACTAS */}
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                    <h4 className="font-semibold text-blue-900 mb-2 text-sm">📏 Dimensões</h4>
+                  <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                    <h4 className="font-semibold text-slate-700 mb-2 text-sm">Dimensões</h4>
                     <div className="space-y-2">
                       <div>
                         <label className="block text-slate-600 text-xs mb-1">Nome:</label>
@@ -1315,7 +1310,7 @@ const SistemaOrcamentoMarmore = () => {
                             type="text"
                             value={pecaEditada?.nome || ''}
                             onChange={(e) => setPecaEditada({...pecaEditada, nome: e.target.value})}
-                            className="w-full px-2 py-1 border-2 border-blue-400 rounded text-sm"
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
                           />
                         ) : (
                           <span className="font-bold text-slate-800 text-sm">{mostrandoDetalhePeca.nome || 'Sem nome'}</span>
@@ -1328,7 +1323,7 @@ const SistemaOrcamentoMarmore = () => {
                             type="number"
                             value={pecaEditada?.comprimento || 0}
                             onChange={(e) => setPecaEditada({...pecaEditada, comprimento: parseInt(e.target.value) || 0})}
-                            className="w-full px-2 py-1 border-2 border-blue-400 rounded text-sm"
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
                           />
                         ) : (
                           <span className="font-bold text-slate-800 text-sm">{mostrandoDetalhePeca.comprimento} mm</span>
@@ -1341,7 +1336,7 @@ const SistemaOrcamentoMarmore = () => {
                             type="number"
                             value={pecaEditada?.altura || 0}
                             onChange={(e) => setPecaEditada({...pecaEditada, altura: parseInt(e.target.value) || 0})}
-                            className="w-full px-2 py-1 border-2 border-blue-400 rounded text-sm"
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
                           />
                         ) : (
                           <span className="font-bold text-slate-800 text-sm">{mostrandoDetalhePeca.altura} mm</span>
@@ -1350,8 +1345,8 @@ const SistemaOrcamentoMarmore = () => {
                     </div>
                   </div>
 
-                  <div className="bg-green-50 rounded-lg p-3 border border-green-200">
-                    <h4 className="font-semibold text-green-900 mb-2 text-sm">📦 Material</h4>
+                  <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                    <h4 className="font-semibold text-slate-700 mb-2 text-sm">Material</h4>
                     <div className="space-y-2">
                       <div>
                         <label className="block text-slate-600 text-xs mb-1">Material:</label>
@@ -1359,7 +1354,7 @@ const SistemaOrcamentoMarmore = () => {
                           <select
                             value={pecaEditada?.materialId || ''}
                             onChange={(e) => setPecaEditada({...pecaEditada, materialId: parseInt(e.target.value)})}
-                            className="w-full px-2 py-1 border-2 border-green-400 rounded text-sm"
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
                           >
                             {materiais.map(m => (
                               <option key={m.id} value={m.id}>{m.nome}</option>
@@ -1383,23 +1378,17 @@ const SistemaOrcamentoMarmore = () => {
 
                 {/* Acabamentos - EDITÁVEL OU VISUALIZAÇÃO */}
                 {(modoEdicaoPeca || (mostrandoDetalhePeca.acabamentos && Object.values(mostrandoDetalhePeca.acabamentos).some(a => a.ativo))) && (
-                  <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
-                    <h4 className="font-semibold text-purple-900 mb-3 text-sm">✨ Acabamentos</h4>
+                  <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                    <h4 className="font-semibold text-slate-700 mb-3 text-sm">Acabamentos</h4>
                     {modoEdicaoPeca ? (
                       <div className="space-y-3">
-                        <p className="text-xs text-purple-800 bg-purple-100 p-2 rounded border border-purple-300">
-                          💡 <strong>Modo de edição:</strong> Insira a quantidade de acabamento em metros lineares. Deixe em branco ou 0 para desativar o acabamento.
+                        <p className="text-xs text-slate-600 bg-slate-100 p-2 rounded border border-slate-300">
+                          Insira a quantidade de acabamento em metros lineares. Deixe em branco ou 0 para desativar.
                         </p>
                         <div className="grid md:grid-cols-2 gap-3">
                           {['polimento', 'esquadria', 'boleado', 'canal'].map(tipo => {
-                            const cores = {
-                              polimento: 'border-blue-400 focus:ring-blue-500',
-                              esquadria: 'border-red-400 focus:ring-red-500',
-                              boleado: 'border-yellow-400 focus:ring-yellow-500',
-                              canal: 'border-orange-400 focus:ring-orange-500'
-                            };
                             return (
-                              <div key={tipo} className="bg-white rounded-lg p-3 border-2 border-purple-300">
+                              <div key={tipo} className="bg-white rounded-lg p-3 border border-slate-300">
                                 <label className="block mb-2">
                                   <span className="font-semibold text-sm capitalize text-slate-700">{tipo}</span>
                                   <span className="text-xs text-slate-500 ml-1">(R$ {precos[tipo]}/m)</span>
@@ -1420,13 +1409,13 @@ const SistemaOrcamentoMarmore = () => {
                                         acabamentosPersonalizados: novosAcabamentosPersonalizados
                                       });
                                     }}
-                                    className={`w-full px-3 py-2 border-2 ${cores[tipo]} rounded-lg focus:ring-2 focus:outline-none text-sm font-medium`}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-400 focus:border-slate-400 focus:outline-none text-sm font-medium"
                                     placeholder="0.00"
                                   />
                                   <span className="text-sm text-slate-600 whitespace-nowrap">metros</span>
                                 </div>
                                 {pecaEditada?.acabamentosPersonalizados?.[tipo] > 0 && (
-                                  <div className="mt-2 text-xs text-green-700 bg-green-50 p-2 rounded border border-green-200">
+                                  <div className="mt-2 text-xs text-slate-700 bg-slate-50 p-2 rounded border border-slate-200">
                                     <strong>Custo:</strong> {((parseFloat(pecaEditada.acabamentosPersonalizados[tipo]) || 0) * precos[tipo]).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                   </div>
                                 )}
@@ -1446,11 +1435,11 @@ const SistemaOrcamentoMarmore = () => {
                             const metros = parseFloat(valorPersonalizado);
                             const valor = metros * precos[tipo];
                             return (
-                              <div key={tipo} className="bg-white rounded p-2 border border-purple-300">
+                              <div key={tipo} className="bg-white rounded p-2 border border-slate-300">
                                 <div className="font-semibold text-slate-800 capitalize text-sm mb-1">{tipo}</div>
                                 <div className="text-xs text-slate-700">
-                                  <span className="font-bold text-blue-600">{metros.toFixed(2)}m</span>
-                                  <span className="ml-2 text-green-600">({valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})</span>
+                                  <span className="font-bold text-slate-800">{metros.toFixed(2)}m</span>
+                                  <span className="ml-2 text-slate-600">({valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})</span>
                                 </div>
                               </div>
                             );
@@ -1460,11 +1449,11 @@ const SistemaOrcamentoMarmore = () => {
                           if (!acab.ativo) return null;
                           const lados = Object.keys(acab.lados).filter(lado => acab.lados[lado]);
                           return (
-                            <div key={tipo} className="bg-white rounded p-2 border border-purple-300">
+                            <div key={tipo} className="bg-white rounded p-2 border border-slate-300">
                               <div className="font-semibold text-slate-800 capitalize text-sm mb-1">{tipo}</div>
                               <div className="flex flex-wrap gap-1">
                                 {lados.map(lado => (
-                                  <span key={lado} className="text-xs bg-purple-100 text-purple-700 px-1 py-0.5 rounded">
+                                  <span key={lado} className="text-xs bg-slate-100 text-slate-700 px-1 py-0.5 rounded">
                                     {lado}
                                   </span>
                                 ))}
@@ -1481,8 +1470,8 @@ const SistemaOrcamentoMarmore = () => {
                 {(modoEdicaoPeca || mostrandoDetalhePeca.cuba > 0 || mostrandoDetalhePeca.cubaEsculpida > 0 || 
                   mostrandoDetalhePeca.cooktop > 0 || mostrandoDetalhePeca.recorte > 0 || 
                   mostrandoDetalhePeca.pes > 0) && (
-                  <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
-                    <h4 className="font-semibold text-orange-900 mb-2 text-sm">🔧 Recortes</h4>
+                  <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                    <h4 className="font-semibold text-slate-700 mb-2 text-sm">Recortes</h4>
                     {modoEdicaoPeca ? (
                       <div className="grid grid-cols-2 gap-2">
                         <div>
@@ -1491,7 +1480,7 @@ const SistemaOrcamentoMarmore = () => {
                             type="number"
                             value={pecaEditada?.cuba || 0}
                             onChange={(e) => setPecaEditada({...pecaEditada, cuba: parseInt(e.target.value) || 0})}
-                            className="w-full px-2 py-1 border border-orange-300 rounded text-sm"
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
                             min="0"
                           />
                         </div>
@@ -1501,7 +1490,7 @@ const SistemaOrcamentoMarmore = () => {
                             type="number"
                             value={pecaEditada?.cubaEsculpida || 0}
                             onChange={(e) => setPecaEditada({...pecaEditada, cubaEsculpida: parseInt(e.target.value) || 0})}
-                            className="w-full px-2 py-1 border border-orange-300 rounded text-sm"
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
                             min="0"
                           />
                         </div>
@@ -1511,7 +1500,7 @@ const SistemaOrcamentoMarmore = () => {
                             type="number"
                             value={pecaEditada?.cooktop || 0}
                             onChange={(e) => setPecaEditada({...pecaEditada, cooktop: parseInt(e.target.value) || 0})}
-                            className="w-full px-2 py-1 border border-orange-300 rounded text-sm"
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
                             min="0"
                           />
                         </div>
@@ -1521,7 +1510,7 @@ const SistemaOrcamentoMarmore = () => {
                             type="number"
                             value={pecaEditada?.recorte || 0}
                             onChange={(e) => setPecaEditada({...pecaEditada, recorte: parseInt(e.target.value) || 0})}
-                            className="w-full px-2 py-1 border border-orange-300 rounded text-sm"
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
                             min="0"
                           />
                         </div>
@@ -1531,7 +1520,7 @@ const SistemaOrcamentoMarmore = () => {
                             type="number"
                             value={pecaEditada?.pes || 0}
                             onChange={(e) => setPecaEditada({...pecaEditada, pes: parseInt(e.target.value) || 0})}
-                            className="w-full px-2 py-1 border border-orange-300 rounded text-sm"
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
                             min="0"
                           />
                         </div>
@@ -1539,31 +1528,31 @@ const SistemaOrcamentoMarmore = () => {
                     ) : (
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                         {mostrandoDetalhePeca.cuba > 0 && (
-                          <div className="bg-white rounded p-2 text-center border border-orange-300">
+                          <div className="bg-white rounded p-2 text-center border border-slate-300">
                             <div className="text-xs text-slate-600">Cuba</div>
                             <div className="font-bold text-slate-800">{mostrandoDetalhePeca.cuba}x</div>
                           </div>
                         )}
                         {mostrandoDetalhePeca.cubaEsculpida > 0 && (
-                          <div className="bg-white rounded p-2 text-center border border-orange-300">
+                          <div className="bg-white rounded p-2 text-center border border-slate-300">
                             <div className="text-xs text-slate-600">Cuba Esculpida</div>
                             <div className="font-bold text-slate-800">{mostrandoDetalhePeca.cubaEsculpida}x</div>
                           </div>
                         )}
                         {mostrandoDetalhePeca.cooktop > 0 && (
-                          <div className="bg-white rounded p-2 text-center border border-orange-300">
+                          <div className="bg-white rounded p-2 text-center border border-slate-300">
                             <div className="text-xs text-slate-600">Cooktop</div>
                             <div className="font-bold text-slate-800">{mostrandoDetalhePeca.cooktop}x</div>
                           </div>
                         )}
                         {mostrandoDetalhePeca.recorte > 0 && (
-                          <div className="bg-white rounded p-2 text-center border border-orange-300">
+                          <div className="bg-white rounded p-2 text-center border border-slate-300">
                             <div className="text-xs text-slate-600">Recorte</div>
                             <div className="font-bold text-slate-800">{mostrandoDetalhePeca.recorte}x</div>
                           </div>
                         )}
                         {mostrandoDetalhePeca.pes > 0 && (
-                          <div className="bg-white rounded p-2 text-center border border-orange-300">
+                          <div className="bg-white rounded p-2 text-center border border-slate-300">
                             <div className="text-xs text-slate-600">Pés</div>
                             <div className="font-bold text-slate-800">{mostrandoDetalhePeca.pes}x</div>
                           </div>
@@ -1576,22 +1565,21 @@ const SistemaOrcamentoMarmore = () => {
 
               {/* Footer - APENAS EM MODO EDIÇÃO */}
               {modoEdicaoPeca && (
-                <div className="bg-white p-3 border-t border-slate-200 flex justify-end gap-2 flex-shrink-0">
+                <div className="bg-white px-6 py-3 border-t border-slate-200 flex justify-end gap-3 flex-shrink-0">
                   <button
                     onClick={() => {
                       setModoEdicaoPeca(false);
                       setPecaEditada(null);
                     }}
-                    className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-100"
+                    className="bg-slate-600 hover:bg-slate-700 text-white px-6 py-2.5 rounded-lg font-medium text-sm transition-all hover:shadow-lg hover:shadow-slate-500/50 hover:scale-105 active:scale-95"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={salvarEdicaoPeca}
-                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold flex items-center gap-2 transition-all hover:shadow-lg hover:shadow-green-500/50 hover:scale-105 active:scale-95"
+                    className="bg-slate-700 hover:bg-slate-800 text-white px-6 py-2.5 rounded-lg font-medium text-sm transition-all hover:shadow-lg hover:shadow-slate-500/50 hover:scale-105 active:scale-95"
                   >
-                    <Save size={18} />
-                    💾 Salvar
+                    Salvar
                   </button>
                 </div>
               )}
@@ -1601,55 +1589,44 @@ const SistemaOrcamentoMarmore = () => {
 
         {/* Modal de Confirmação de Exclusão */}
         {pecaParaExcluir && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 border-4 border-red-500">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
+            <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 border border-slate-200">
               {/* Header */}
-              <div className="bg-gradient-to-r from-red-600 to-red-700 p-6 rounded-t-2xl">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                    <Trash2 size={24} className="text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-white">Excluir Peça</h3>
-                    <p className="text-red-100 text-sm">Esta ação não pode ser desfeita</p>
-                  </div>
-                </div>
+              <div className="bg-slate-800 px-6 py-4 rounded-t-lg">
+                <h3 className="text-lg font-bold text-white">Excluir Peça</h3>
               </div>
 
               {/* Conteúdo */}
               <div className="p-6">
-                <p className="text-gray-700 text-lg mb-2">
+                <p className="text-slate-700 text-sm mb-3">
                   Deseja realmente excluir esta peça?
                 </p>
-                <p className="text-gray-900 font-bold text-xl bg-gray-100 p-3 rounded-lg">
+                <p className="text-slate-900 font-bold text-base bg-slate-50 p-3 rounded-lg border border-slate-200">
                   {pecaParaExcluir.pecaNome || 'Peça sem nome'}
                 </p>
-                <p className="text-sm text-gray-500 mt-3">
+                <p className="text-xs text-slate-500 mt-3">
                   A peça será removida e as chapas serão reorganizadas automaticamente.
                 </p>
               </div>
 
               {/* Rodapé */}
-              <div className="bg-gray-50 p-4 rounded-b-2xl flex gap-3 justify-end">
+              <div className="px-6 py-3 border-t border-slate-200 flex gap-3 justify-end">
                 <button
                   onClick={() => {
-                    console.log('❌ Cancelou exclusão');
                     setPecaParaExcluir(null);
                   }}
-                  className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-100 transition-all"
+                  className="bg-slate-600 hover:bg-slate-700 text-white px-6 py-2.5 rounded-lg font-medium text-sm transition-all hover:shadow-lg hover:shadow-slate-500/50 hover:scale-105 active:scale-95"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={() => {
-                    console.log('✅ Confirmou exclusão');
                     excluirPeca(pecaParaExcluir.ambienteId, pecaParaExcluir.pecaId);
                     setPecaParaExcluir(null);
                   }}
-                  className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-lg font-medium text-sm transition-all hover:shadow-lg hover:shadow-red-500/50 hover:scale-105 active:scale-95"
                 >
-                  <Trash2 size={20} />
-                  Excluir Peça
+                  Excluir
                 </button>
               </div>
             </div>
@@ -1845,7 +1822,7 @@ const SistemaOrcamentoMarmore = () => {
                     placeholder="Nome do orçamento"
                   />
                 </div>
-                <p className="text-sm text-gray-500">Criado em: {orcamentoAtual.data}</p>
+                <p className="text-sm text-gray-500">Criado em: {orcamentoAtual.dataCriacao ? new Date(orcamentoAtual.dataCriacao).toLocaleDateString('pt-BR') : '-'}</p>
               </div>
 
               {/* Painel de Configuração de Preços do Orçamento */}
@@ -2192,27 +2169,22 @@ const SistemaOrcamentoMarmore = () => {
 
         {/* Plano de Corte */}
         {tela === 'plano-corte' && orcamentoAtual && (
-          <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
+          <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200">
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
-                  <Grid size={20} className="text-white" />
-                </div>
-                <h2 className="text-2xl font-bold text-slate-800">Plano de Corte</h2>
-              </div>
+              <h2 className="text-2xl font-bold text-slate-800">Plano de Corte</h2>
               <div className="flex gap-3">
                 <button
                   onClick={imprimirPlanoCorte}
-                  className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2.5 rounded-xl hover:shadow-lg transition-all duration-200 font-medium"
+                  className="flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-4 py-2.5 rounded-lg font-medium text-sm transition-all hover:shadow-lg hover:shadow-slate-500/50 hover:scale-105 active:scale-95"
                 >
-                  <FileText size={20} />
+                  <FileText size={18} />
                   Imprimir Plano
                 </button>
                 <button
                   onClick={() => setTela('orcamento')}
-                  className="flex items-center gap-2 text-slate-600 hover:text-slate-800 border-2 border-slate-200 px-4 py-2.5 rounded-xl hover:bg-slate-50 transition-all duration-200"
+                  className="flex items-center gap-2 bg-slate-600 hover:bg-slate-700 text-white px-4 py-2.5 rounded-lg font-medium text-sm transition-all hover:shadow-lg hover:shadow-slate-500/50 hover:scale-105 active:scale-95"
                 >
-                  <X size={20} />
+                  <X size={18} />
                   Voltar
                 </button>
               </div>
@@ -2242,26 +2214,21 @@ const SistemaOrcamentoMarmore = () => {
 
       {/* Footer */}
       <footer className="bg-slate-800 border-t border-slate-700 mt-auto">
-        <div className="px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 bg-slate-700 rounded flex items-center justify-center">
-                <Grid size={14} className="text-slate-300" />
-              </div>
-              <p className="text-slate-400 text-xs">
-                © {new Date().getFullYear()} Pietra Sistema de Orçamento • Versão 1.0
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-slate-400 text-xs">Desenvolvido por Caique Lacerda</span>
+        <div className="px-6 py-4">
+          <div className="flex items-end justify-between">
+            <p className="text-slate-400 text-sm">
+              © {new Date().getFullYear()} Pietra Sistema de Orçamento • Versão 1.0
+            </p>
+            <div className="flex items-end gap-4">
+              <span className="text-slate-400 text-sm">Desenvolvido por Caique Lacerda</span>
               <button
                 onClick={() => {
                   storage.logout();
                   window.location.reload();
                 }}
-                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all hover:shadow-lg hover:shadow-red-500/50 hover:scale-105 active:scale-95"
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-lg hover:shadow-red-500/50 hover:scale-105 active:scale-95"
               >
-                🚪 Sair
+                Sair
               </button>
             </div>
           </div>
@@ -2349,179 +2316,6 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
 
       {expandido && (
         <div className="p-4 space-y-4 max-h-[800px] overflow-y-auto">
-          {/* Lista de Peças */}
-          {ambiente.pecas.map(peca => {
-            const material = materiais.find(m => m.id === peca.materialId);
-            const materialConfig = materialConfigs[peca.materialId] || {
-              comprimento: 3000,
-              altura: 2000,
-              custo: 250,
-              venda: 333.33
-            };
-            const custosPeca = calcularCustosPeca(peca, materialConfig, precos);
-            return (
-              <div key={peca.id} className="bg-gray-50 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-all relative" style={{ zIndex: 1 }}>
-                {/* Botões de Ação - ABSOLUTOS NO CANTO */}
-                <div className="absolute top-2 right-2 flex gap-2" style={{ zIndex: 2, position: 'absolute' }}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('🔵 Ver detalhes clicado');
-                      onVisualizarPeca && onVisualizarPeca(peca);
-                    }}
-                    onMouseEnter={() => console.log('Mouse entrou no botão AZUL')}
-                    className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-lg shadow-lg transition-all"
-                    title="Ver detalhes"
-                    style={{ cursor: 'pointer', pointerEvents: 'auto' }}
-                  >
-                    <Edit2 size={18} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('🔴 CLICOU NO BOTÃO EXCLUIR');
-                      console.log('Peça ID:', peca.id);
-                      console.log('Ambiente ID:', ambiente.id);
-                      
-                      // Chamar callback para mostrar modal de confirmação
-                      if (onPedirConfirmacaoExclusao) {
-                        onPedirConfirmacaoExclusao(peca.id, peca.nome);
-                      }
-                    }}
-                    onMouseEnter={() => console.log('Mouse entrou no botão VERMELHO')}
-                    className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg shadow-lg transition-all"
-                    title="Excluir peça"
-                    style={{ cursor: 'pointer', pointerEvents: 'auto' }}
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-
-                <div className="flex gap-3 pr-24">
-                  {/* Miniatura da peça */}
-                  <div 
-                    className="flex-shrink-0 cursor-pointer hover:scale-105 transition-transform" 
-                    style={{ width: '120px', height: '90px' }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onVisualizarPeca && onVisualizarPeca(peca);
-                    }}
-                    title="Clique para ver detalhes"
-                  >
-                    <PreviewAcabamentos peca={peca} mostrarSempre={true} mini={true} />
-                  </div>
-                  
-                  {/* Informações da peça */}
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-800 mb-2 text-base">{peca.nome || 'Sem nome'}</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      <div>
-                        <p className="text-gray-500 text-sm">Dimensões</p>
-                        <p className="font-medium text-sm">{peca.comprimento} x {peca.altura} mm</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500 text-sm">Material</p>
-                        <p className="font-medium text-sm">{material?.nome}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500 text-sm">Chapa</p>
-                        <p className="font-medium text-sm">#{peca.chapaId ? String(peca.chapaId).slice(-4) : 'N/A'}</p>
-                      </div>
-                    </div>
-
-                    {/* Acabamentos aplicados */}
-                    {peca.acabamentos && Object.values(peca.acabamentos).some(a => a.ativo) && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {Object.keys(peca.acabamentos).map(tipo => {
-                          const acab = peca.acabamentos[tipo];
-                          if (!acab.ativo) return null;
-                          const cores = {
-                            esquadria: 'bg-red-100 text-red-700',
-                            boleado: 'bg-yellow-100 text-yellow-700',
-                            polimento: 'bg-blue-100 text-blue-700',
-                            canal: 'bg-orange-100 text-orange-700'
-                          };
-                          return (
-                            <span key={tipo} className={`text-sm px-2 py-1 rounded ${cores[tipo]}`}>
-                              {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Custos Detalhados da Peça */}
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="text-gray-500">Área:</span>
-                          <span className="font-semibold text-gray-800 ml-1">{custosPeca.area.toFixed(2)}m²</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Material:</span>
-                          <span className="font-semibold text-green-700 ml-1">{formatBRL(custosPeca.custoMaterial)}</span>
-                        </div>
-                        {custosPeca.acabamentos > 0 && (
-                          <div>
-                            <span className="text-gray-500">Acabamentos:</span>
-                            <span className="font-semibold text-blue-700 ml-1">{formatBRL(custosPeca.acabamentos)}</span>
-                          </div>
-                        )}
-                        {custosPeca.recortes > 0 && (
-                          <div>
-                            <span className="text-gray-500">Recortes:</span>
-                            <span className="font-semibold text-purple-700 ml-1">{formatBRL(custosPeca.recortes)}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="mt-2 pt-2 border-t border-gray-300 flex justify-between items-center">
-                        <span className="text-sm font-bold text-gray-700">Total da Peça:</span>
-                        <span className="text-base font-bold text-green-600">{formatBRL(custosPeca.total)}</span>
-                      </div>
-
-                      {/* Detalhes expandíveis de acabamentos e recortes */}
-                      {(custosPeca.detalhesAcabamentos.length > 0 || custosPeca.detalhesRecortes.length > 0) && (
-                        <details className="mt-2">
-                          <summary className="text-xs text-blue-600 cursor-pointer hover:text-blue-800">
-                            Ver detalhes dos custos
-                          </summary>
-                          <div className="mt-2 space-y-1 pl-2 border-l-2 border-blue-200">
-                            {custosPeca.detalhesAcabamentos.length > 0 && (
-                              <div>
-                                <p className="text-xs font-semibold text-gray-700">Acabamentos:</p>
-                                {custosPeca.detalhesAcabamentos.map((detalhe, idx) => (
-                                  <div key={idx} className="text-xs text-gray-600 flex justify-between">
-                                    <span>• {detalhe.tipo.charAt(0).toUpperCase() + detalhe.tipo.slice(1)} ({detalhe.metros}m)</span>
-                                    <span className="font-medium">{formatBRL(detalhe.valor)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            {custosPeca.detalhesRecortes.length > 0 && (
-                              <div className="mt-1">
-                                <p className="text-xs font-semibold text-gray-700">Recortes:</p>
-                                {custosPeca.detalhesRecortes.map((detalhe, idx) => (
-                                  <div key={idx} className="text-xs text-gray-600 flex justify-between">
-                                    <span>• {detalhe.tipo} ({detalhe.quantidade}x)</span>
-                                    <span className="font-medium">{formatBRL(detalhe.valor)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </details>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
           {/* Botão Adicionar Peça */}
           {!mostrarForm && (
             <button
@@ -2608,7 +2402,7 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
                   />
                   <span className="text-sm">Esquadria (R$ {precos.esquadria}/m)</span>
                 </label>
-                
+
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -2626,7 +2420,7 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
                   />
                   <span className="text-sm">Boleado (R$ {precos.boleado}/m)</span>
                 </label>
-                
+
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -2644,7 +2438,7 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
                   />
                   <span className="text-sm">Polimento (R$ {precos.polimento}/m)</span>
                 </label>
-                
+
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -2663,16 +2457,16 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
                   <span className="text-sm">Canal (R$ {precos.canal}/m)</span>
                 </label>
               </div>
-              
+
               {/* Preview Unificado de Acabamentos */}
-              {(novaPeca.acabamentos.esquadria.ativo || 
-                novaPeca.acabamentos.boleado.ativo || 
-                novaPeca.acabamentos.polimento.ativo || 
+              {(novaPeca.acabamentos.esquadria.ativo ||
+                novaPeca.acabamentos.boleado.ativo ||
+                novaPeca.acabamentos.polimento.ativo ||
                 novaPeca.acabamentos.canal.ativo) && (
                 <div className="mb-3 bg-white border border-slate-300 rounded-lg p-4">
                   <h6 className="font-semibold text-sm mb-3 text-slate-700">Selecione os lados para cada acabamento:</h6>
-                  
-                  <div className="space-y-4">
+
+                  <div className="flex flex-wrap justify-center gap-4">
                     {[
                       { tipo: 'esquadria', label: 'Esquadria', cor: 'red', emoji: '🔴' },
                       { tipo: 'boleado', label: 'Boleado', cor: 'yellow', emoji: '🟡' },
@@ -2682,7 +2476,7 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
                       const coresBg = { red: 'bg-red-100 border-red-400 text-red-700', yellow: 'bg-yellow-100 border-yellow-400 text-yellow-700', blue: 'bg-blue-100 border-blue-400 text-blue-700', orange: 'bg-orange-100 border-orange-400 text-orange-700' };
                       const coresAtivo = { red: 'bg-red-500 text-white border-red-600', yellow: 'bg-yellow-500 text-white border-yellow-600', blue: 'bg-blue-500 text-white border-blue-600', orange: 'bg-orange-500 text-white border-orange-600' };
                       const coresInativo = { red: 'bg-white text-red-400 border-red-200 hover:bg-red-50', yellow: 'bg-white text-yellow-500 border-yellow-200 hover:bg-yellow-50', blue: 'bg-white text-blue-400 border-blue-200 hover:bg-blue-50', orange: 'bg-white text-orange-400 border-orange-200 hover:bg-orange-50' };
-                      
+
                       const toggleLado = (lado) => {
                         const novosAcabamentos = { ...novaPeca.acabamentos };
                         novosAcabamentos[item.tipo] = {
@@ -2699,12 +2493,12 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
                       const ladosSelecionados = Object.keys(lados).filter(l => lados[l]).length;
 
                       return (
-                        <div key={item.tipo} className={`rounded-lg p-3 border ${coresBg[item.cor]}`}>
+                        <div key={item.tipo} className={`rounded-lg p-3 border w-56 ${coresBg[item.cor]}`}>
                           <div className="flex items-center justify-between mb-2">
                             <p className="text-xs font-bold">{item.emoji} {item.label}</p>
                             <span className="text-xs opacity-70">{ladosSelecionados} lado(s)</span>
                           </div>
-                          
+
                           {/* Seletor visual com quadrado representando a peça */}
                           <div className="flex items-center justify-center">
                             <div className="relative" style={{ width: '180px', height: '120px' }}>
@@ -2749,7 +2543,7 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
                               </button>
 
                               {/* Quadrado central representando a peça */}
-                              <div 
+                              <div
                                 className="absolute bg-white border-2 border-gray-300 rounded flex items-center justify-center"
                                 style={{ top: '22px', bottom: '22px', left: '26px', right: '26px' }}
                               >
@@ -2848,7 +2642,7 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
 
               {/* Preview da Peça */}
               {novaPeca.comprimento && novaPeca.altura && (
-                <div className="mb-4">
+                <div className="mb-4 flex justify-center">
                   <PreviewAcabamentos peca={novaPeca} />
                 </div>
               )}
@@ -2867,7 +2661,7 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
                         altura: '',
                         comprimento: '',
                         quantidade: 1,
-                        materialId: materiais[0]?.id || null,
+                        materialId: novaPeca.materialId,
                         acabamentos: {
                           esquadria: { ativo: false, lados: { superior: false, inferior: false, esquerda: false, direita: false } },
                           boleado: { ativo: false, lados: { superior: false, inferior: false, esquerda: false, direita: false } },
@@ -2898,6 +2692,148 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
               </div>
             </div>
           )}
+
+          {/* Lista de Peças */}
+          {ambiente.pecas.map(peca => {
+            const material = materiais.find(m => m.id === peca.materialId);
+            const materialConfig = materialConfigs[peca.materialId] || {
+              comprimento: 3000,
+              altura: 2000,
+              custo: 250,
+              venda: 333.33
+            };
+            const custosPeca = calcularCustosPeca(peca, materialConfig, precos);
+            return (
+              <div key={peca.id} className="border border-slate-200 rounded-lg p-4 hover:border-slate-400 hover:shadow-sm transition-all">
+                <div className="flex gap-4">
+                  {/* Miniatura da peça */}
+                  <div
+                    className="flex-shrink-0 cursor-pointer hover:scale-105 transition-transform"
+                    style={{ width: '100px', height: '75px' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onVisualizarPeca && onVisualizarPeca(peca);
+                    }}
+                    title="Clique para ver detalhes"
+                  >
+                    <PreviewAcabamentos peca={peca} mostrarSempre={true} mini={true} />
+                  </div>
+
+                  {/* Informações da peça */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="font-bold text-slate-800 text-base">{peca.nome || 'Sem nome'}</h4>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onVisualizarPeca && onVisualizarPeca(peca);
+                          }}
+                          className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-1.5 rounded transition-colors"
+                          title="Ver detalhes"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (onPedirConfirmacaoExclusao) {
+                              onPedirConfirmacaoExclusao(peca.id, peca.nome);
+                            }
+                          }}
+                          className="text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded transition-colors"
+                          title="Excluir peça"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-500 mt-1">
+                      <span><span className="font-medium text-slate-700">{peca.comprimento} x {peca.altura}</span> mm</span>
+                      <span>{material?.nome}</span>
+                      <span>Chapa #{peca.chapaId ? String(peca.chapaId).slice(-4) : 'N/A'}</span>
+                    </div>
+
+                    {/* Acabamentos aplicados */}
+                    {peca.acabamentos && Object.values(peca.acabamentos).some(a => a.ativo) && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {Object.keys(peca.acabamentos).map(tipo => {
+                          const acab = peca.acabamentos[tipo];
+                          if (!acab.ativo) return null;
+                          return (
+                            <span key={tipo} className="text-xs px-2 py-0.5 rounded bg-slate-200 text-slate-700">
+                              {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Custos */}
+                <div className="mt-3 pt-3 border-t border-slate-200">
+                  <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                    <span className="text-slate-500">Área: <span className="font-semibold text-slate-700">{custosPeca.area.toFixed(2)}m²</span></span>
+                    <span className="text-slate-500">Material: <span className="font-semibold text-slate-700">{formatBRL(custosPeca.custoMaterial)}</span></span>
+                    {custosPeca.acabamentos > 0 && (
+                      <span className="text-slate-500">Acabamentos: <span className="font-semibold text-slate-700">{formatBRL(custosPeca.acabamentos)}</span></span>
+                    )}
+                    {custosPeca.recortes > 0 && (
+                      <span className="text-slate-500">Recortes: <span className="font-semibold text-slate-700">{formatBRL(custosPeca.recortes)}</span></span>
+                    )}
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-slate-300 flex justify-between items-center">
+                    <span className="text-sm font-bold text-slate-700">Total da Peça:</span>
+                    <span className="text-base font-bold text-green-700">{formatBRL(custosPeca.total)}</span>
+                  </div>
+
+                  {/* Detalhes expandíveis */}
+                  {(custosPeca.detalhesAcabamentos.length > 0 || custosPeca.detalhesRecortes.length > 0) && (
+                    <details className="mt-2">
+                      <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-700">
+                        Ver detalhes dos custos
+                      </summary>
+                      <div className="mt-2 space-y-1 pl-2 border-l-2 border-slate-300">
+                        {custosPeca.detalhesAcabamentos.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-slate-700">Acabamentos:</p>
+                            {custosPeca.detalhesAcabamentos.map((detalhe, idx) => (
+                              <div key={idx} className="text-xs text-slate-600 flex justify-between">
+                                <span>• {detalhe.tipo.charAt(0).toUpperCase() + detalhe.tipo.slice(1)} ({detalhe.metros}m)</span>
+                                <span className="font-medium">{formatBRL(detalhe.valor)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {custosPeca.detalhesRecortes.length > 0 && (
+                          <div className="mt-1">
+                            <p className="text-xs font-semibold text-slate-700">Recortes:</p>
+                            {custosPeca.detalhesRecortes.map((detalhe, idx) => (
+                              <div key={idx} className="text-xs text-slate-600 flex justify-between">
+                                <span>• {detalhe.tipo} ({detalhe.quantidade}x)</span>
+                                <span className="font-medium">{formatBRL(detalhe.valor)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
         </div>
       )}
     </div>
@@ -3090,16 +3026,6 @@ const PreviewAcabamentos = ({ peca, mostrarSempre = false, mini = false }) => {
         className="w-full"
         style={mini ? {} : { maxWidth: '260px' }}
       />
-      {!mostrarSempre && !mini && (
-        <div className="p-3 border-t-2 border-gray-200 bg-white">
-          <p className="text-xs text-gray-600 text-center font-medium">
-            👁️ Pré-visualização da peça
-          </p>
-          <p className="text-xs text-gray-500 text-center mt-1">
-            Use os botões abaixo para selecionar os lados de cada acabamento
-          </p>
-        </div>
-      )}
       {!mini && peca.acabamentos && Object.values(peca.acabamentos).some(a => a.ativo) && (
         <div className="p-2 bg-white border-t border-gray-200">
           <p className="text-xs font-semibold text-gray-600 mb-1">Acabamentos:</p>
@@ -3131,92 +3057,148 @@ const ResumoOrcamento = ({ orcamentoAtual, materiais, precos, onSalvar, onSair }
     <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200">
       <h3 className="text-2xl font-bold mb-6 text-slate-800">Resumo do Orçamento</h3>
 
-      {/* Chapas de Material - CUSTO vs VENDA */}
-      <div className="mb-6">
-        <div className="flex justify-between items-center py-3 border-b border-slate-300 mb-3">
-          <span className="font-semibold text-base text-slate-700">Chapas de Material</span>
-          <div className="flex gap-8">
-            <div className="text-right">
-              <div className="text-xs text-slate-500 uppercase mb-1">Custo</div>
-              <span className="font-semibold text-base text-slate-700">{formatBRL(orcamento.custoChapas)}</span>
+      {/* Chapas - Aproveitamento */}
+      {orcamento.detalhesChapas && orcamento.detalhesChapas.length > 0 && (
+        <div className="mb-6">
+          <div className="flex justify-between items-center py-3 border-b border-slate-300 mb-4">
+            <span className="font-semibold text-base text-slate-700">Chapas ({orcamento.detalhesChapas.length})</span>
+            <div className="flex gap-6">
+              <div className="text-right">
+                <div className="text-xs text-slate-500 uppercase mb-1">Custo</div>
+                <span className="font-semibold text-base text-slate-700">{formatBRL(orcamento.custoChapas)}</span>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-slate-500 uppercase mb-1">Venda</div>
+                <span className="font-semibold text-base text-slate-800">{formatBRL(orcamento.vendaChapas)}</span>
+              </div>
             </div>
-            <div className="text-right">
-              <div className="text-xs text-slate-500 uppercase mb-1">Venda</div>
-              <span className="font-semibold text-base text-slate-800">{formatBRL(orcamento.vendaChapas)}</span>
-            </div>
+          </div>
+          <div className="space-y-3">
+            {orcamento.detalhesChapas.map((detalhe, idx) => {
+              const custoChapa = (detalhe.custoPecas || 0) + (detalhe.custoSobra || 0);
+              const vendaChapa = (detalhe.vendaPecas || 0) + (detalhe.custoSobra || 0);
+              return (
+                <div key={idx} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                  {/* Header da chapa */}
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="font-semibold text-slate-800">
+                      Chapa {idx + 1} - {detalhe.materialNome}
+                    </span>
+                    <span className={`text-xs px-2 py-1 rounded font-medium ${
+                      detalhe.percentualAproveitamento >= 70 ? 'bg-green-100 text-green-700' :
+                      detalhe.percentualAproveitamento >= 40 ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {detalhe.percentualAproveitamento.toFixed(1)}% aproveitamento
+                    </span>
+                  </div>
+
+                  {/* Metragem e Peças */}
+                  <div className="grid grid-cols-4 gap-3 mb-3">
+                    <div className="bg-white rounded p-2 border border-slate-200 text-center">
+                      <div className="text-xs text-slate-500">Peças</div>
+                      <div className="font-bold text-base text-slate-800">{detalhe.numPecas || 0}</div>
+                    </div>
+                    <div className="bg-white rounded p-2 border border-slate-200 text-center">
+                      <div className="text-xs text-slate-500">Área Total</div>
+                      <div className="font-bold text-sm text-slate-800">{detalhe.areaTotal.toFixed(2)}m²</div>
+                    </div>
+                    <div className="bg-white rounded p-2 border border-slate-200 text-center">
+                      <div className="text-xs text-slate-500">Área Peças</div>
+                      <div className="font-bold text-sm text-slate-800">{detalhe.areaPecas.toFixed(2)}m²</div>
+                    </div>
+                    <div className="bg-white rounded p-2 border border-slate-200 text-center">
+                      <div className="text-xs text-slate-500">Sobra</div>
+                      <div className="font-bold text-sm text-slate-800">{detalhe.areaSobra.toFixed(2)}m²</div>
+                    </div>
+                  </div>
+
+                  {/* Valores */}
+                  <div className="flex justify-end gap-6 pt-3 border-t border-slate-200">
+                    <div>
+                      <span className="text-xs text-slate-500">Custo: </span>
+                      <span className="text-base font-bold text-orange-600">{formatBRL(custoChapa)}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-slate-500">Venda: </span>
+                      <span className="text-base font-bold text-green-600">{formatBRL(vendaChapa)}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
-        {Object.keys(orcamento.chapasPorMaterial || {}).map(materialId => {
-          const material = materiais.find(m => m.id === parseInt(materialId));
-          const materialConfig = orcamento.materiais?.[parseInt(materialId)] || {
-            comprimento: 3000,
-            altura: 2000,
-            custo: 250,
-            venda: 333.33
-          };
-          const qtd = orcamento.chapasPorMaterial[materialId];
-          const areaChapa = (materialConfig.comprimento * materialConfig.altura / 1000000);
-          const custoParcial = materialConfig.custo * areaChapa * qtd;
-          const vendaParcial = materialConfig.venda * areaChapa * qtd;
-          return (
-            <div key={materialId} className="flex justify-between text-sm text-slate-600 pl-4 py-2 hover:bg-slate-50 rounded">
-              <span className="flex-1">
-                <span className="font-medium text-slate-700">{material?.nome}</span>
-                <span className="text-slate-500 ml-2">
-                  ({qtd}x chapas • {materialConfig.comprimento}x{materialConfig.altura}mm • {(areaChapa * qtd).toFixed(2)}m² total)
-                </span>
-              </span>
-              <div className="flex gap-8 ml-4">
-                <span className="text-slate-600 w-24 text-right">{formatBRL(custoParcial)}</span>
-                <span className="text-slate-700 w-24 text-right font-medium">{formatBRL(vendaParcial)}</span>
-              </div>
+      )}
+
+      {/* Acabamentos, Recortes e Resumo de Metragem */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        {orcamento.acabamentos > 0 && (
+          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 flex flex-col">
+            <h4 className="font-semibold text-slate-700 mb-3">Acabamentos</h4>
+            <div className="space-y-2 flex-1">
+              {(() => {
+                const acabamentosPorTipo = {};
+                if (orcamento.detalhesAcabamentos && orcamento.detalhesAcabamentos.length > 0) {
+                  orcamento.detalhesAcabamentos.forEach(detalhe => {
+                    const tipo = detalhe.tipo;
+                    if (!acabamentosPorTipo[tipo]) {
+                      acabamentosPorTipo[tipo] = 0;
+                    }
+                    acabamentosPorTipo[tipo] += detalhe.valor;
+                  });
+                }
+                return Object.keys(acabamentosPorTipo)
+                  .filter(tipo => acabamentosPorTipo[tipo] > 0)
+                  .map((tipo, idx, arr) => (
+                    <div key={tipo} className={`flex justify-between items-center text-sm ${idx < arr.length - 1 ? 'pb-2 border-b border-slate-300' : ''}`}>
+                      <span className="text-slate-600 font-medium">{tipo}</span>
+                      <span className="text-slate-700 font-semibold">{formatBRL(acabamentosPorTipo[tipo])}</span>
+                    </div>
+                  ));
+              })()}
             </div>
-          );
-        })}
-        {orcamento.margemChapas > 0 && orcamento.vendaChapas > 0 && (
-          <div className="mt-2 pt-2 border-t border-slate-200 flex justify-between text-sm pl-4">
-            <span className="font-medium text-slate-600">Margem das Chapas:</span>
-            <span className="font-medium text-slate-700">{formatBRL(orcamento.margemChapas)} <span className="text-slate-500">({((orcamento.margemChapas / orcamento.vendaChapas) * 100).toFixed(1)}%)</span></span>
+            <div className="flex justify-between items-center text-sm pt-2 mt-auto border-t-2 border-slate-400">
+              <span className="text-slate-700 font-bold">Total</span>
+              <span className="text-slate-800 font-bold text-base">{formatBRL(orcamento.acabamentos)}</span>
+            </div>
           </div>
         )}
-
-        {/* Detalhamento por Chapa */}
-        {orcamento.detalhesChapas && orcamento.detalhesChapas.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-slate-200">
-            <h4 className="font-semibold text-slate-700 mb-3">
-              Aproveitamento por Chapa
-              <span className="text-xs text-slate-500 font-normal ml-2">(peças = preço venda, sobra = preço custo)</span>
-            </h4>
-            {orcamento.detalhesChapas.map((detalhe, idx) => (
-              <div key={idx} className="bg-slate-50 rounded-lg p-3 mb-2 text-sm border border-slate-200">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="font-medium text-slate-700">
-                    Chapa {idx + 1} - {detalhe.materialNome}
-                  </span>
-                  <span className="text-xs px-2 py-1 rounded bg-slate-200 text-slate-700 font-medium">
-                    {detalhe.percentualAproveitamento.toFixed(1)}% aproveitamento
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
-                  <div>Área total: <strong className="text-slate-700">{detalhe.areaTotal.toFixed(2)}m²</strong></div>
-                  <div>Área peças: <strong className="text-slate-700">{detalhe.areaPecas.toFixed(2)}m²</strong></div>
-                  <div>Área sobra: <strong className="text-slate-700">{detalhe.areaSobra.toFixed(2)}m²</strong></div>
-                  <div>Venda peças: <strong className="text-slate-700">{formatBRL(detalhe.vendaPecas)}</strong></div>
-                  <div>Custo sobra: <strong className="text-slate-700">{formatBRL(detalhe.custoSobra)}</strong></div>
-                </div>
-              </div>
-            ))}
+        {orcamento.recortes > 0 && (
+          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 flex flex-col">
+            <h4 className="font-semibold text-slate-700 mb-3">Recortes</h4>
+            <div className="space-y-2 flex-1">
+              {(() => {
+                const recortesPorTipo = {};
+                if (orcamento.detalhesRecortes && orcamento.detalhesRecortes.length > 0) {
+                  orcamento.detalhesRecortes.forEach(detalhe => {
+                    const tipo = detalhe.tipo;
+                    if (!recortesPorTipo[tipo]) {
+                      recortesPorTipo[tipo] = 0;
+                    }
+                    recortesPorTipo[tipo] += detalhe.valor;
+                  });
+                }
+                return Object.keys(recortesPorTipo)
+                  .filter(tipo => recortesPorTipo[tipo] > 0)
+                  .map((tipo, idx, arr) => (
+                    <div key={tipo} className={`flex justify-between items-center text-sm ${idx < arr.length - 1 ? 'pb-2 border-b border-slate-300' : ''}`}>
+                      <span className="text-slate-600 font-medium">{tipo}</span>
+                      <span className="text-slate-700 font-semibold">{formatBRL(recortesPorTipo[tipo])}</span>
+                    </div>
+                  ));
+              })()}
+            </div>
+            <div className="flex justify-between items-center text-sm pt-2 mt-auto border-t-2 border-slate-400">
+              <span className="text-slate-700 font-bold">Total</span>
+              <span className="text-slate-800 font-bold text-base">{formatBRL(orcamento.recortes)}</span>
+            </div>
           </div>
         )}
-
-      </div>
-
-      {/* Resumo de Metragem, Acabamentos e Recortes */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         {orcamento.detalhesChapas && orcamento.detalhesChapas.length > 0 && (
-          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 flex flex-col">
             <h4 className="font-semibold text-slate-700 mb-3">Resumo de Metragem</h4>
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1">
               <div className="flex justify-between items-center text-sm pb-2 border-b border-slate-300">
                 <span className="text-slate-600 font-medium">Peças Cobradas</span>
                 <div className="text-right">
@@ -3239,64 +3221,18 @@ const ResumoOrcamento = ({ orcamentoAtual, materiais, precos, onSalvar, onSair }
                   </span>
                 </div>
               </div>
-              <div className="flex justify-between items-center text-sm pt-2 border-t-2 border-slate-400">
-                <span className="text-slate-700 font-bold">Total Geral</span>
-                <div className="text-right">
-                  <span className="text-slate-800 font-bold text-base">
-                    {orcamento.detalhesChapas.reduce((sum, d) => sum + d.areaTotal, 0).toFixed(2)}m²
-                  </span>
-                  <span className="text-xs text-slate-500 ml-2">
-                    ({((orcamento.detalhesChapas.reduce((sum, d) => sum + d.areaPecas, 0) / orcamento.detalhesChapas.reduce((sum, d) => sum + d.areaTotal, 0)) * 100).toFixed(1)}% aproveitamento)
-                  </span>
-                </div>
+            </div>
+            <div className="flex justify-between items-center text-sm pt-2 mt-auto border-t-2 border-slate-400">
+              <span className="text-slate-700 font-bold">Total Geral</span>
+              <div className="text-right">
+                <span className="text-slate-800 font-bold text-base">
+                  {orcamento.detalhesChapas.reduce((sum, d) => sum + d.areaTotal, 0).toFixed(2)}m²
+                </span>
+                <span className="text-xs text-slate-500 ml-2">
+                  ({((orcamento.detalhesChapas.reduce((sum, d) => sum + d.areaPecas, 0) / orcamento.detalhesChapas.reduce((sum, d) => sum + d.areaTotal, 0)) * 100).toFixed(1)}% aproveitamento)
+                </span>
               </div>
             </div>
-          </div>
-        )}
-        {orcamento.acabamentos > 0 && (
-          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-            <h4 className="font-semibold text-slate-700 mb-3">Acabamentos</h4>
-            <div className="space-y-2">
-              {(() => {
-                // Agregar acabamentos por tipo usando os detalhes já calculados
-                const acabamentosPorTipo = {};
-
-                if (orcamento.detalhesAcabamentos && orcamento.detalhesAcabamentos.length > 0) {
-                  orcamento.detalhesAcabamentos.forEach(detalhe => {
-                    const tipo = detalhe.tipo; // Já vem com nome bonito: 'Polimento', 'Esquadria', etc.
-                    if (!acabamentosPorTipo[tipo]) {
-                      acabamentosPorTipo[tipo] = 0;
-                    }
-                    acabamentosPorTipo[tipo] += detalhe.valor;
-                  });
-                }
-
-                const items = Object.keys(acabamentosPorTipo)
-                  .filter(tipo => acabamentosPorTipo[tipo] > 0)
-                  .map((tipo, idx, arr) => (
-                    <div key={tipo} className={`flex justify-between items-center text-sm ${idx < arr.length - 1 ? 'pb-2 border-b border-slate-300' : ''}`}>
-                      <span className="text-slate-600 font-medium">{tipo}</span>
-                      <span className="text-slate-700 font-semibold">{formatBRL(acabamentosPorTipo[tipo])}</span>
-                    </div>
-                  ));
-
-                items.push(
-                  <div key="total" className="flex justify-between items-center text-sm pt-2 border-t-2 border-slate-400">
-                    <span className="text-slate-700 font-bold">Total</span>
-                    <span className="text-slate-800 font-bold text-base">{formatBRL(orcamento.acabamentos)}</span>
-                  </div>
-                );
-
-                return items;
-              })()}
-            </div>
-          </div>
-        )}
-        {orcamento.recortes > 0 && (
-          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-            <div className="text-sm text-slate-600 font-medium mb-1">Total Recortes</div>
-            <div className="text-2xl font-bold text-slate-800">{formatBRL(orcamento.recortes)}</div>
-            <div className="text-xs text-slate-500 mt-1">Ver detalhes em cada peça</div>
           </div>
         )}
       </div>
@@ -3307,7 +3243,7 @@ const ResumoOrcamento = ({ orcamentoAtual, materiais, precos, onSalvar, onSair }
           <span className="text-base font-semibold text-slate-700 uppercase">Custo Total</span>
           <span className="text-base font-semibold text-slate-700">{formatBRL(orcamento.custoTotal)}</span>
         </div>
-        <div className="flex justify-between py-4 bg-slate-800 px-4 rounded-lg">
+        <div className="flex justify-between py-4 bg-green-700 px-4 rounded-lg">
           <span className="text-xl font-bold text-white uppercase">Valor de Venda</span>
           <span className="text-xl font-bold text-white">{formatBRL(orcamento.vendaTotal)}</span>
         </div>
@@ -3425,65 +3361,6 @@ const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa, onGir
       ctx.strokeStyle = cor;
       ctx.lineWidth = bw;
       ctx.strokeRect(x + bw/2, y + bw/2, w - bw, h - bw);
-
-      // Desenhar acabamentos na peça
-      if (peca.acabamentos) {
-        const coresAcabamentos = {
-          esquadria: '#ef4444',
-          boleado: '#eab308',
-          polimento: '#3b82f6',
-          canal: '#f59e0b'
-        };
-        
-        const offsetCanal = 3 * escala; // Canal fica mais interno
-        
-        Object.keys(peca.acabamentos).forEach(tipoAcab => {
-          const acab = peca.acabamentos[tipoAcab];
-          if (!acab || !acab.ativo || !acab.lados) return;
-          
-          const cor = coresAcabamentos[tipoAcab];
-          const isCanal = tipoAcab === 'canal';
-          const offset = isCanal ? offsetCanal : 0;
-          
-          ctx.strokeStyle = cor;
-          ctx.lineWidth = 2;
-          ctx.setLineDash([4, 2]);
-          
-          // Superior
-          if (acab.lados.superior) {
-            ctx.beginPath();
-            ctx.moveTo(x + offset, y + offset);
-            ctx.lineTo(x + w - offset, y + offset);
-            ctx.stroke();
-          }
-          
-          // Inferior
-          if (acab.lados.inferior) {
-            ctx.beginPath();
-            ctx.moveTo(x + offset, y + h - offset);
-            ctx.lineTo(x + w - offset, y + h - offset);
-            ctx.stroke();
-          }
-          
-          // Esquerda
-          if (acab.lados.esquerda) {
-            ctx.beginPath();
-            ctx.moveTo(x + offset, y + offset);
-            ctx.lineTo(x + offset, y + h - offset);
-            ctx.stroke();
-          }
-          
-          // Direita
-          if (acab.lados.direita) {
-            ctx.beginPath();
-            ctx.moveTo(x + w - offset, y + offset);
-            ctx.lineTo(x + w - offset, y + h - offset);
-            ctx.stroke();
-          }
-          
-          ctx.setLineDash([]);
-        });
-      }
 
       // Texto com nome e dimensões (considerando rotação)
       ctx.fillStyle = `rgb(${Math.max(0,r-40)}, ${Math.max(0,g-40)}, ${Math.max(0,b-40)})`;
@@ -3771,14 +3648,14 @@ const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa, onGir
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4">
+    <div className="border border-slate-200 rounded-lg p-4">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="font-semibold text-lg">Chapa #{numero}</h3>
-          <p className="text-sm text-gray-600">{chapa.material.nome} - {chapa.pecas.length} peças</p>
+          <h3 className="font-semibold text-lg text-slate-800">Chapa #{numero}</h3>
+          <p className="text-sm text-slate-500">{chapa.material.nome} - {chapa.pecas.length} peças</p>
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-sm">Zoom:</label>
+          <label className="text-sm text-slate-600">Zoom:</label>
           <input
             type="range"
             min="0.05"
@@ -3790,7 +3667,7 @@ const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa, onGir
           />
         </div>
       </div>
-      <div className="overflow-auto bg-white border border-gray-300 rounded">
+      <div className="overflow-auto bg-white border border-slate-200 rounded">
         <canvas
           ref={canvasRef}
           onMouseDown={handleMouseDown}
@@ -3800,13 +3677,13 @@ const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa, onGir
           className="cursor-move"
         />
       </div>
-      <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
+      <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
         <div>
-          <p className="text-xs text-gray-600">
-            🖱️ Arraste peças livremente. Magnetismo ativo (20mm): alinha com outras peças e bordas.
+          <p className="text-xs text-slate-500">
+            Arraste peças livremente. Magnetismo ativo (20mm): alinha com outras peças e bordas.
           </p>
-          <p className="text-xs text-gray-500 mt-1">
-            💡 Dica: O magnetismo facilita o alinhamento, mas você pode posicionar livremente em qualquer lugar!
+          <p className="text-xs text-slate-400 mt-1">
+            O magnetismo facilita o alinhamento, mas você pode posicionar livremente em qualquer lugar.
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -3816,27 +3693,27 @@ const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa, onGir
                 onClick={() => {
                   onGirarPeca(pecaSelecionada, chapa.id);
                 }}
-                className="flex items-center gap-1 bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700"
+                className="flex items-center gap-1 bg-slate-700 hover:bg-slate-800 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
               >
                 <span className="rotate-90 inline-block">↻</span>
                 Girar Peça (90°)
               </button>
-              
+
               {/* Botão para mover para outra chapa */}
               {todasChapas && todasChapas.length > 1 && todasChapas.filter(c => c.materialId === chapa.materialId && c.id !== chapa.id).length > 0 && (
                 <div className="relative">
                   <button
                     onClick={() => setChapaDestinoSelecionada(chapaDestinoSelecionada ? null : 'abrir')}
-                    className="flex items-center gap-1 bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700"
+                    className="flex items-center gap-1 bg-slate-600 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
                   >
                     <Move size={14} />
                     Mover para Outra Chapa
                   </button>
-                  
+
                   {chapaDestinoSelecionada === 'abrir' && (
-                    <div className="absolute bottom-full mb-2 right-0 bg-white border border-gray-300 rounded shadow-lg p-2 z-10 min-w-[200px]">
-                      <p className="text-xs font-semibold mb-2 text-gray-700">Selecione a chapa de destino:</p>
-                      <p className="text-xs text-blue-600 mb-2">✨ O sistema encontrará automaticamente a melhor posição disponível</p>
+                    <div className="absolute bottom-full mb-2 right-0 bg-white border border-slate-200 rounded-lg shadow-lg p-3 z-10 min-w-[200px]">
+                      <p className="text-xs font-semibold mb-2 text-slate-700">Selecione a chapa de destino:</p>
+                      <p className="text-xs text-slate-500 mb-2">O sistema encontrará automaticamente a melhor posição disponível</p>
                       {todasChapas
                         .filter(c => c.materialId === chapa.materialId && c.id !== chapa.id)
                         .map((chapaDestino, idx) => (
@@ -3845,13 +3722,12 @@ const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa, onGir
                             onClick={() => {
                               const pecaAtual = chapa.pecas.find(p => p.id === pecaSelecionada);
                               if (pecaAtual) {
-                                // Sistema encontra automaticamente a melhor posição
                                 onMoverPeca(pecaSelecionada, chapaDestino.id);
                                 setPecaSelecionada(null);
                                 setChapaDestinoSelecionada(null);
                               }
                             }}
-                            className="w-full text-left px-2 py-1 text-sm hover:bg-blue-50 rounded"
+                            className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded transition-colors text-slate-700"
                           >
                             Chapa #{todasChapas.findIndex(c => c.id === chapaDestino.id) + 1} - {chapaDestino.material.nome}
                           </button>

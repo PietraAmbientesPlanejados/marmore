@@ -19,7 +19,14 @@
       "Bash(git push:*)",
       "Bash(gh run list:*)",
       "Bash(npm run build:*)",
-      "Bash(tasklist:*)"
+      "Bash(tasklist:*)",
+      "Bash(timeout:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(if exist node_modules.vite rmdir /s /q node_modules.vite)",
+      "Bash(git rm:*)",
+      "Bash(git pull:*)",
+      "Bash(dir:*)"
     ]
   }
 }
