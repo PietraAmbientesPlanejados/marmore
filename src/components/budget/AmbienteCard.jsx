@@ -4,13 +4,13 @@ import { PreviewAcabamentos } from '../preview/PreviewAcabamentos';
 import { calcularCustosPeca } from '../../utils/calculations';
 import { formatBRL } from '../../utils/formatters';
 
-export const AmbienteCard = ({ ambiente, materiais, precos, onAdicionarPeca, onExcluirPeca, onVisualizarPeca, onPedirConfirmacaoExclusao }) => {
+export const AmbienteCard = ({ ambiente, materiais, precos, onAdicionarPeca, onExcluirPeca, onExcluirAmbiente, onVisualizarPeca, onPedirConfirmacaoExclusao }) => {
   const [expandido, setExpandido] = useState(false);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [novaPeca, setNovaPeca] = useState({
     nome: '',
     altura: '',
-    comprimento: '',
+    largura: '',
     quantidade: 1,
     materialId: materiais[0]?.id || null,
     acabamentos: {
@@ -27,16 +27,83 @@ export const AmbienteCard = ({ ambiente, materiais, precos, onAdicionarPeca, onE
   });
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden" style={{ position: 'relative', zIndex: 1 }}>
+    <div className="border-2 border-teal-200 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all bg-gray-100" style={{ position: 'relative', zIndex: 1, borderLeft: '6px solid #14b8a6' }}>
       <div
-        className="bg-gray-50 p-4 cursor-pointer hover:bg-gray-100"
+        className="bg-gradient-to-r from-teal-50 to-teal-100 p-4 cursor-pointer hover:from-teal-100 hover:to-teal-200 transition-all"
         onClick={() => setExpandido(!expandido)}
       >
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-800">{ambiente.nome}</h3>
-          <span className="text-sm text-gray-600">{ambiente.pecas.length} peças</span>
+          <h3 className="text-lg font-bold text-teal-900">{ambiente.nome}</h3>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold text-teal-700 bg-white px-3 py-1 rounded-full">{ambiente.pecas.length} {ambiente.pecas.length === 1 ? 'peça' : 'peças'}</span>
+            {onExcluirAmbiente && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (window.confirm(`Tem certeza que deseja excluir o ambiente "${ambiente.nome}"?\n\nTodas as peças deste ambiente serão perdidas.`)) {
+                    onExcluirAmbiente();
+                  }
+                }}
+                className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-all shadow-md hover:shadow-lg"
+                title="Excluir ambiente"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Resumo do Ambiente */}
+      {(() => {
+        let totalMaterial = 0;
+        let totalAcabamentos = 0;
+        let totalRecortes = 0;
+        let totalArea = 0;
+
+        ambiente.pecas.forEach(peca => {
+          const material = materiais.find(m => m.id === peca.materialId);
+          const custos = calcularCustosPeca(peca, material, precos);
+          totalMaterial += custos.custoMaterial || 0;
+          totalAcabamentos += custos.acabamentos || 0;
+          totalRecortes += custos.recortes || 0;
+          totalArea += custos.area || 0;
+        });
+
+        const totalGeral = totalMaterial + totalAcabamentos + totalRecortes;
+
+        return (
+          <div className="px-4 py-3 bg-gray-100 border-t border-teal-100">
+            <div className="flex items-center gap-2 text-xs text-slate-600 mb-3">
+              <span className="font-medium">{ambiente.pecas.length} {ambiente.pecas.length === 1 ? 'peça' : 'peças'}</span>
+              <span>•</span>
+              <span className="font-medium">{totalArea.toFixed(2)}m²</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+              <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+                <div className="text-xs text-slate-600 font-medium mb-1 text-center">Material</div>
+                <div className="text-sm font-bold text-red-900 text-center">{formatBRL(totalMaterial)}</div>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
+                <div className="text-xs text-slate-600 font-medium mb-1 text-center">Sobra</div>
+                <div className="text-sm font-bold text-orange-900 text-center">{formatBRL(0)}</div>
+              </div>
+              <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+                <div className="text-xs text-slate-600 font-medium mb-1 text-center">Acabamentos</div>
+                <div className="text-sm font-bold text-red-900 text-center">{formatBRL(totalAcabamentos)}</div>
+              </div>
+              <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+                <div className="text-xs text-slate-600 font-medium mb-1 text-center">Recortes</div>
+                <div className="text-sm font-bold text-yellow-900 text-center">{formatBRL(totalRecortes)}</div>
+              </div>
+              <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                <div className="text-xs text-slate-600 font-medium mb-1 text-center">Total</div>
+                <div className="text-sm font-bold text-green-900 text-center">{formatBRL(totalGeral)}</div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {expandido && (
         <div className="p-4 space-y-4">
@@ -106,7 +173,7 @@ export const AmbienteCard = ({ ambiente, materiais, precos, onAdicionarPeca, onE
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                       <div>
                         <p className="text-gray-500 text-xs">Dimensões</p>
-                        <p className="font-medium text-xs">{peca.comprimento} x {peca.altura} mm</p>
+                        <p className="font-medium text-xs">{peca.largura} x {peca.altura} mm</p>
                       </div>
                       <div>
                         <p className="text-gray-500 text-xs">Material</p>
@@ -211,7 +278,7 @@ export const AmbienteCard = ({ ambiente, materiais, precos, onAdicionarPeca, onE
           {!mostrarForm && (
             <button
               onClick={() => setMostrarForm(true)}
-              className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 text-gray-600 hover:border-blue-500 hover:text-blue-600"
+              className="w-full border-2 border-dashed border-green-300 rounded-lg p-4 text-gray-600 hover:border-green-500 hover:text-green-600"
             >
               + Adicionar Peça
             </button>
@@ -220,8 +287,13 @@ export const AmbienteCard = ({ ambiente, materiais, precos, onAdicionarPeca, onE
           {/* Formulário de Nova Peça */}
           {mostrarForm && (
             <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
-              <h4 className="font-semibold mb-3">Nova Peça</h4>
-              <div className="mb-3">
+              <h4 className="font-semibold mb-4">Nova Peça</h4>
+
+              {/* Layout com duas colunas: Formulário e Preview */}
+              <div className="grid lg:grid-cols-[1fr_300px] gap-6">
+                {/* Coluna Esquerda: Formulário */}
+                <div>
+                  <div className="mb-3">
                 <label className="block text-xs font-medium mb-1">Nome da Peça *</label>
                 <input
                   type="text"
@@ -242,11 +314,11 @@ export const AmbienteCard = ({ ambiente, materiais, precos, onAdicionarPeca, onE
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium mb-1">Comprimento (mm)</label>
+                  <label className="block text-xs font-medium mb-1">Largura (mm)</label>
                   <input
                     type="number"
-                    value={novaPeca.comprimento}
-                    onChange={(e) => setNovaPeca({ ...novaPeca, comprimento: e.target.value })}
+                    value={novaPeca.largura}
+                    onChange={(e) => setNovaPeca({ ...novaPeca, largura: e.target.value })}
                     className="w-full border rounded px-2 py-1 text-sm"
                   />
                 </div>
@@ -530,27 +602,38 @@ export const AmbienteCard = ({ ambiente, materiais, precos, onAdicionarPeca, onE
                   />
                 </div>
               </div>
-
-              {/* Preview da Peça */}
-              {novaPeca.comprimento && novaPeca.altura && (
-                <div className="mb-4">
-                  <PreviewAcabamentos peca={novaPeca} />
                 </div>
-              )}
 
-              <div className="flex gap-2">
+                {/* Coluna Direita: Preview Fixo */}
+                <div className="border-2 border-slate-300 rounded-lg bg-gray-100 p-4 sticky top-4 h-fit">
+                  <h5 className="font-bold text-sm text-slate-700 mb-3 pb-2 border-b border-slate-200">
+                    📋 Preview da Peça
+                  </h5>
+                  {novaPeca.largura && novaPeca.altura ? (
+                    <PreviewAcabamentos peca={novaPeca} />
+                  ) : (
+                    <div className="text-center py-8 text-slate-400 text-sm">
+                      <p className="mb-2">⚠️</p>
+                      <p>Preencha largura e altura para ver o preview</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="flex gap-2 mt-6">
                 <button
                   onClick={() => {
-                    if (novaPeca.nome && novaPeca.altura && novaPeca.comprimento && novaPeca.materialId) {
+                    if (novaPeca.nome && novaPeca.altura && novaPeca.largura && novaPeca.materialId) {
                       onAdicionarPeca({
                         ...novaPeca,
                         altura: parseFloat(novaPeca.altura),
-                        comprimento: parseFloat(novaPeca.comprimento)
+                        largura: parseFloat(novaPeca.largura)
                       });
                       setNovaPeca({
                         nome: '',
                         altura: '',
-                        comprimento: '',
+                        largura: '',
                         quantidade: 1,
                         materialId: materiais[0]?.id || null,
                         acabamentos: {
@@ -567,7 +650,7 @@ export const AmbienteCard = ({ ambiente, materiais, precos, onAdicionarPeca, onE
                       });
                       setMostrarForm(false);
                     } else {
-                      alert('Por favor, preencha o nome, altura e comprimento da peça!');
+                      alert('Por favor, preencha o nome, altura e largura da peça!');
                     }
                   }}
                   className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
