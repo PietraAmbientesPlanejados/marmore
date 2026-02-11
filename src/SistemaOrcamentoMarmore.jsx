@@ -2616,7 +2616,7 @@ const SistemaOrcamentoMarmore = () => {
             </div>
 
             {/* Resumo do Orçamento */}
-            {orcamentoAtual.ambientes && orcamentoAtual.ambientes.length > 0 && (
+            {orcamentoAtual.ambientes && orcamentoAtual.ambientes.some(amb => amb.pecas && amb.pecas.length > 0) && (
               <ResumoOrcamento
                 key={`resumo-${orcamentoAtual.id}-v${orcamentoVersion}`}
                 orcamentoAtual={orcamentoAtual}
