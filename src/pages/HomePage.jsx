@@ -27,7 +27,7 @@ export const HomePage = ({
       {/* Grid com proporção 2:1 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Card de Orçamentos - Ocupa 2 colunas */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-6 border border-slate-200 min-h-[calc(100vh-200px)] flex flex-col">
+        <div className="lg:col-span-2 bg-gray-100 rounded-lg shadow-sm p-6 border border-slate-200 min-h-[500px] max-h-[calc(100vh-200px)] flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-slate-800">Orçamentos</h2>
             <button
@@ -74,26 +74,46 @@ export const HomePage = ({
                           <h3 className="text-2xl font-bold text-slate-800 group-hover:text-slate-900">
                             {orc.nome || `Orçamento #${String(orc.id).slice(-6)}`}
                           </h3>
-                          <div className="flex gap-3 text-xs text-slate-500 mt-auto">
-                            <span>🏠 {orc.ambientes.length} ambientes</span>
-                            <span>📦 {totalPecas} peças</span>
-                            <span>📄 {orc.chapas.length} chapas</span>
+                          <div className="flex gap-4 text-sm text-slate-600 mt-auto font-medium">
+                            <span className="flex items-center gap-1">
+                              <span className="text-lg">🏠</span> {orc.ambientes.length} ambientes
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="text-lg">📦</span> {totalPecas} peças
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="text-lg">📄</span> {orc.chapas.length} chapas
+                            </span>
                           </div>
                         </div>
 
-                        {/* Valores */}
-                        <div className="text-right">
-                          <div className="mb-2">
-                            <p className="text-xs text-slate-500 uppercase">Custo</p>
-                            <p className="text-lg font-bold text-orange-600">
-                              {formatBRL(orcCalc.custoTotal)}
-                            </p>
+                        {/* Resumo do Orçamento */}
+                        <div className="flex flex-wrap gap-2">
+                          <div className="bg-blue-50 rounded-lg p-2 border border-blue-200 min-w-[90px]">
+                            <div className="text-xs text-slate-600 font-medium mb-1">Material</div>
+                            <div className="text-sm font-bold text-blue-900">{formatBRL(orcCalc.vendaPecas || 0)}</div>
                           </div>
-                          <div>
-                            <p className="text-xs text-slate-500 uppercase">Venda</p>
-                            <p className="text-lg font-bold text-green-600">
-                              {formatBRL(orcCalc.vendaTotal)}
-                            </p>
+                          {orcCalc.acabamentos > 0 && (
+                            <div className="bg-red-50 rounded-lg p-2 border border-red-200 min-w-[90px]">
+                              <div className="text-xs text-slate-600 font-medium mb-1">Acabamentos</div>
+                              <div className="text-sm font-bold text-red-900">{formatBRL(orcCalc.acabamentos)}</div>
+                            </div>
+                          )}
+                          {orcCalc.custoSobra > 0 && (
+                            <div className="bg-orange-50 rounded-lg p-2 border border-orange-200 min-w-[90px]">
+                              <div className="text-xs text-slate-600 font-medium mb-1">Sobra</div>
+                              <div className="text-sm font-bold text-orange-900">{formatBRL(orcCalc.custoSobra)}</div>
+                            </div>
+                          )}
+                          {orcCalc.recortes > 0 && (
+                            <div className="bg-purple-50 rounded-lg p-2 border border-purple-200 min-w-[90px]">
+                              <div className="text-xs text-slate-600 font-medium mb-1">Recortes</div>
+                              <div className="text-sm font-bold text-purple-900">{formatBRL(orcCalc.recortes)}</div>
+                            </div>
+                          )}
+                          <div className="bg-green-50 rounded-lg p-2 border border-green-200 min-w-[90px]">
+                            <div className="text-xs text-slate-600 font-medium mb-1">Total</div>
+                            <div className="text-base font-bold text-green-900">{formatBRL(orcCalc.vendaTotal)}</div>
                           </div>
                         </div>
 
@@ -134,7 +154,7 @@ export const HomePage = ({
         </div>
 
         {/* Card de Materiais */}
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200 min-h-[calc(100vh-200px)] flex flex-col">
+        <div className="bg-gray-100 rounded-lg shadow-sm p-6 border border-slate-200 min-h-[500px] max-h-[calc(100vh-200px)] flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-slate-800">Materiais</h2>
             <button

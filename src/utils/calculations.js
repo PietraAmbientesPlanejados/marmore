@@ -28,8 +28,8 @@ export const converterPrecoParaM2 = (precoChapa, comprimentoMm, alturaMm) => {
 export const calcularCustosPeca = (peca, material, precos) => {
   if (!peca || !material) return { area: 0, custoMaterial: 0, acabamentos: 0, recortes: 0, total: 0, detalhesAcabamentos: [], detalhesRecortes: [] };
 
-  const largura = peca.rotacao === 90 ? peca.altura : peca.comprimento;
-  const altura = peca.rotacao === 90 ? peca.comprimento : peca.altura;
+  const largura = peca.rotacao === 90 ? peca.altura : peca.largura;
+  const altura = peca.rotacao === 90 ? peca.largura : peca.altura;
   const area = calcularAreaM2(largura, altura);
 
   // Custo do material (área × preço de venda)
@@ -201,16 +201,16 @@ export const encontrarPosicaoNaChapa = (chapa, peca, materialConfig, espacamento
   const alturaChapa = materialConfig.altura;
 
   // Considerar rotação da peça
-  const pecaLargura = peca.rotacao === 90 ? peca.altura : peca.comprimento;
-  const pecaAltura = peca.rotacao === 90 ? peca.comprimento : peca.altura;
+  const pecaLargura = peca.rotacao === 90 ? peca.altura : peca.largura;
+  const pecaAltura = peca.rotacao === 90 ? peca.largura : peca.altura;
 
   // Tentar diferentes posições, começando do canto superior esquerdo
   for (let y = espacamento; y + pecaAltura + espacamento <= alturaChapa; y += 5) {
     for (let x = espacamento; x + pecaLargura + espacamento <= larguraChapa; x += 5) {
       // Verificar se não sobrepõe com outras peças (considerando espaçamento de 4mm)
       const sobrepoe = chapa.pecas.some(p => {
-        const pLargura = p.rotacao === 90 ? p.altura : p.comprimento;
-        const pAltura = p.rotacao === 90 ? p.comprimento : p.altura;
+        const pLargura = p.rotacao === 90 ? p.altura : p.largura;
+        const pAltura = p.rotacao === 90 ? p.largura : p.altura;
 
         const distanciaX = Math.abs((x + pecaLargura / 2) - (p.posX + pLargura / 2));
         const distanciaY = Math.abs((y + pecaAltura / 2) - (p.posY + pAltura / 2));
@@ -275,8 +275,8 @@ export const calcularOrcamentoComDetalhes = (orcamentoAtual, materiais, precos) 
     // Calcular área total das peças nesta chapa
     let areaPecasM2 = 0;
     chapa.pecas.forEach(peca => {
-      const larguraPeca = peca.rotacao === 90 ? peca.altura : peca.comprimento;
-      const alturaPeca = peca.rotacao === 90 ? peca.comprimento : peca.altura;
+      const larguraPeca = peca.rotacao === 90 ? peca.altura : peca.largura;
+      const alturaPeca = peca.rotacao === 90 ? peca.largura : peca.altura;
       areaPecasM2 += calcularAreaM2(larguraPeca, alturaPeca);
     });
 
@@ -325,8 +325,8 @@ export const calcularOrcamentoComDetalhes = (orcamentoAtual, materiais, precos) 
 
       // Calcular acabamentos por lado
       if (peca.acabamentos) {
-        const largura = peca.rotacao === 90 ? peca.altura : peca.comprimento;
-        const altura = peca.rotacao === 90 ? peca.comprimento : peca.altura;
+        const largura = peca.rotacao === 90 ? peca.altura : peca.largura;
+        const altura = peca.rotacao === 90 ? peca.largura : peca.altura;
 
         const tiposAcabamento = [
           { tipo: 'esquadria', nome: 'Esquadria' },
@@ -436,6 +436,10 @@ export const calcularOrcamentoComDetalhes = (orcamentoAtual, materiais, precos) 
     });
   });
 
+  // Calcular totais separados de peças e sobra
+  const vendaPecasTotal = detalhesChapas.reduce((sum, d) => sum + d.vendaPecas, 0);
+  const custoSobraTotal = detalhesChapas.reduce((sum, d) => sum + d.custoSobra, 0);
+
   const margemChapas = (vendaChapas || 0) - (custoChapas || 0);
   const custoTotal = (custoChapas || 0) + (totalAcabamentos || 0) + (totalRecortes || 0);
   const vendaTotal = (vendaChapas || 0) + (totalAcabamentos || 0) + (totalRecortes || 0);
@@ -445,6 +449,8 @@ export const calcularOrcamentoComDetalhes = (orcamentoAtual, materiais, precos) 
     custoChapas,
     vendaChapas,
     margemChapas,
+    vendaPecas: vendaPecasTotal,
+    custoSobra: custoSobraTotal,
     acabamentos: totalAcabamentos,
     recortes: totalRecortes,
     custoTotal,

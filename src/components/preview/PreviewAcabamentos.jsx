@@ -9,10 +9,10 @@ export const PreviewAcabamentos = ({ peca, mostrarSempre = false, mini = false }
 
   const desenharPreview = () => {
     const canvas = canvasRef.current;
-    if (!canvas || !peca.comprimento || !peca.altura) return;
+    if (!canvas || !peca.largura || !peca.altura) return;
 
     const ctx = canvas.getContext('2d');
-    const largura = parseFloat(peca.comprimento) || 600;
+    const largura = parseFloat(peca.largura) || 600;
     const altura = parseFloat(peca.altura) || 400;
 
     const canvasWidth = mini ? 120 : 260;
@@ -26,12 +26,12 @@ export const PreviewAcabamentos = ({ peca, mostrarSempre = false, mini = false }
     const areaW = canvasWidth - margemLeft - margemRight;
     const areaH = canvasHeight - margemTop - margemBottom;
 
-    const escalaX = areaW / largura;
-    const escalaY = areaH / altura;
+    const escalaX = areaW / altura;
+    const escalaY = areaH / largura;
     const escala = Math.min(escalaX, escalaY, mini ? 0.5 : 0.55);
 
-    const w = largura * escala;
-    const h = altura * escala;
+    const w = altura * escala;
+    const h = largura * escala;
     const offsetX = margemLeft + (areaW - w) / 2;
     const offsetY = margemTop + (areaH - h) / 2;
 
@@ -164,13 +164,13 @@ export const PreviewAcabamentos = ({ peca, mostrarSempre = false, mini = false }
     <div className={`${mini ? 'border border-gray-300 rounded' : 'border-2 border-gray-300 rounded-lg shadow-md'} bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden`} style={mini ? {} : { maxWidth: '260px' }}>
       <canvas ref={canvasRef} className="w-full" style={mini ? {} : { maxWidth: '260px' }} />
       {!mostrarSempre && !mini && (
-        <div className="p-3 border-t-2 border-gray-200 bg-white">
+        <div className="p-3 border-t-2 border-gray-200 bg-gray-100">
           <p className="text-xs text-gray-600 text-center font-medium">👁️ Pré-visualização da peça</p>
           <p className="text-xs text-gray-500 text-center mt-1">Use os botões abaixo para selecionar os lados de cada acabamento</p>
         </div>
       )}
       {!mini && peca.acabamentos && Object.values(peca.acabamentos).some((a) => a.ativo) && (
-        <div className="p-2 bg-white border-t border-gray-200">
+        <div className="p-2 bg-gray-100 border-t border-gray-200">
           <p className="text-xs font-semibold text-gray-600 mb-1">Acabamentos:</p>
           <div className="flex flex-wrap gap-2">
             {Object.keys(peca.acabamentos).map((tipo) => {

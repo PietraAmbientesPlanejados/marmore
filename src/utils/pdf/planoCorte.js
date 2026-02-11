@@ -109,8 +109,8 @@ export const gerarPDFPlanoCorte = (orcamentoAtual) => {
     chapa.pecas.forEach((peca, pIdx) => {
       const px = desenhoX + peca.posX * escala;
       const py = desenhoY + peca.posY * escala;
-      const pw = (peca.rotacao === 90 ? peca.altura : peca.comprimento) * escala;
-      const ph = (peca.rotacao === 90 ? peca.comprimento : peca.altura) * escala;
+      const pw = (peca.rotacao === 90 ? peca.altura : peca.largura) * escala;
+      const ph = (peca.rotacao === 90 ? peca.largura : peca.altura) * escala;
 
       const cor = cores[pIdx % cores.length];
       const r = parseInt(cor.slice(1, 3), 16);
@@ -135,14 +135,14 @@ export const gerarPDFPlanoCorte = (orcamentoAtual) => {
           pdf.setFontSize(fontDim);
           pdf.setFont('helvetica', 'normal');
           pdf.setTextColor(40, 40, 40);
-          const dim = peca.rotacao === 90 ? peca.altura + 'x' + peca.comprimento : peca.comprimento + 'x' + peca.altura;
+          const dim = peca.rotacao === 90 ? peca.altura + 'x' + peca.largura : peca.largura + 'x' + peca.altura;
           pdf.text(dim, px + pw / 2, py + ph / 2 + Math.min(3.5, ph * 0.18), { align: 'center' });
         }
       }
 
       const nome = peca.nome || ('Peça ' + (pIdx + 1));
-      const pecaCompExib = peca.rotacao === 90 ? peca.altura : peca.comprimento;
-      const pecaAltExib = peca.rotacao === 90 ? peca.comprimento : peca.altura;
+      const pecaCompExib = peca.rotacao === 90 ? peca.altura : peca.largura;
+      const pecaAltExib = peca.rotacao === 90 ? peca.largura : peca.altura;
       legendaItens.push({ numero: pIdx + 1, nome, cor, dim: pecaCompExib + 'x' + pecaAltExib, rotado: peca.rotacao === 90 });
     });
 

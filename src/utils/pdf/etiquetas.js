@@ -25,7 +25,7 @@ export const gerarEtiquetasPDF = (orcamentoAtual, materiais) => {
     primeira = false;
 
     const material = materiais.find(m => m.id === peca.materialId);
-    const comp = Math.round(peca.comprimento);
+    const comp = Math.round(peca.largura);
     const larg = Math.round(peca.altura);
 
     // ===== HEADER: PIETRA MÓVEIS E REVESTIMENTOS =====

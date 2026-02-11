@@ -59,8 +59,8 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
       const y = 50 + peca.posY * escala;
 
       // Considerar rotação para dimensões
-      const w = (peca.rotacao === 90 ? peca.altura : peca.comprimento) * escala;
-      const h = (peca.rotacao === 90 ? peca.comprimento : peca.altura) * escala;
+      const w = (peca.rotacao === 90 ? peca.altura : peca.largura) * escala;
+      const h = (peca.rotacao === 90 ? peca.largura : peca.altura) * escala;
 
       const ehSelecionada = pecaSelecionada === peca.id;
       const cor = ehSelecionada ? '#10b981' : cores[idx % cores.length];
@@ -146,8 +146,8 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
 
     // Desenhar peça sendo arrastada
     if (arrastandoPeca) {
-      const w = (arrastandoPeca.rotacao === 90 ? arrastandoPeca.altura : arrastandoPeca.comprimento) * escala;
-      const h = (arrastandoPeca.rotacao === 90 ? arrastandoPeca.comprimento : arrastandoPeca.altura) * escala;
+      const w = (arrastandoPeca.rotacao === 90 ? arrastandoPeca.altura : arrastandoPeca.largura) * escala;
+      const h = (arrastandoPeca.rotacao === 90 ? arrastandoPeca.largura : arrastandoPeca.altura) * escala;
 
       // Cor muda para vermelho se houver colisão
       const cor = arrastandoPeca.colisao ? 'rgba(239, 68, 68, 0.7)' : 'rgba(59, 130, 246, 0.6)';
@@ -192,8 +192,8 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
     const pecaClicada = chapa.pecas.find(peca => {
       const px = 50 + peca.posX * escala;
       const py = 50 + peca.posY * escala;
-      const pw = (peca.rotacao === 90 ? peca.altura : peca.comprimento) * escala;
-      const ph = (peca.rotacao === 90 ? peca.comprimento : peca.altura) * escala;
+      const pw = (peca.rotacao === 90 ? peca.altura : peca.largura) * escala;
+      const ph = (peca.rotacao === 90 ? peca.largura : peca.altura) * escala;
       return x >= px && x <= px + pw && y >= py && y <= py + ph;
     });
 
@@ -222,8 +222,8 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
 
     // MAGNETISMO - Detectar proximidade com outras peças e bordas
     const toleranciaMagnetismo = 20; // pixels de tolerância para ativar o magnetismo
-    const larguraPeca = arrastandoPeca.rotacao === 90 ? arrastandoPeca.altura : arrastandoPeca.comprimento;
-    const alturaPeca = arrastandoPeca.rotacao === 90 ? arrastandoPeca.comprimento : arrastandoPeca.altura;
+    const larguraPeca = arrastandoPeca.rotacao === 90 ? arrastandoPeca.altura : arrastandoPeca.largura;
+    const alturaPeca = arrastandoPeca.rotacao === 90 ? arrastandoPeca.largura : arrastandoPeca.altura;
 
     // MAGNETISMO NAS BORDAS DA CHAPA
     // Borda esquerda
@@ -252,8 +252,8 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
     chapa.pecas.forEach(p => {
       if (p.id === arrastandoPeca.id) return;
 
-      const larguraOutra = p.rotacao === 90 ? p.altura : p.comprimento;
-      const alturaOutra = p.rotacao === 90 ? p.comprimento : p.altura;
+      const larguraOutra = p.rotacao === 90 ? p.altura : p.largura;
+      const alturaOutra = p.rotacao === 90 ? p.largura : p.altura;
 
       // Magnetismo horizontal (alinhamento à direita da peça existente)
       const distDireita = Math.abs(novaX - (p.posX + larguraOutra + espacamento));
@@ -312,8 +312,8 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
     const temColisao = chapa.pecas.some(p => {
       if (p.id === arrastandoPeca.id) return false;
 
-      const larguraOutra = p.rotacao === 90 ? p.altura : p.comprimento;
-      const alturaOutra = p.rotacao === 90 ? p.comprimento : p.altura;
+      const larguraOutra = p.rotacao === 90 ? p.altura : p.largura;
+      const alturaOutra = p.rotacao === 90 ? p.largura : p.altura;
 
       const centroNovaX = novaX + larguraPeca / 2;
       const centroNovaY = novaY + alturaPeca / 2;
@@ -353,8 +353,8 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
     const novaY = arrastandoPeca.posYReal !== undefined ? arrastandoPeca.posYReal : Math.max(0, Math.round((arrastandoPeca.y - 50) / escala));
 
     const espacamento = 4;
-    const larguraPeca = arrastandoPeca.rotacao === 90 ? arrastandoPeca.altura : arrastandoPeca.comprimento;
-    const alturaPeca = arrastandoPeca.rotacao === 90 ? arrastandoPeca.comprimento : arrastandoPeca.altura;
+    const larguraPeca = arrastandoPeca.rotacao === 90 ? arrastandoPeca.altura : arrastandoPeca.largura;
+    const alturaPeca = arrastandoPeca.rotacao === 90 ? arrastandoPeca.largura : arrastandoPeca.altura;
 
     // Verificar se está dentro dos limites da chapa
     const dentroDosLimites =
@@ -373,8 +373,8 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
     const temColisao = chapa.pecas.some(p => {
       if (p.id === arrastandoPeca.id) return false;
 
-      const larguraOutra = p.rotacao === 90 ? p.altura : p.comprimento;
-      const alturaOutra = p.rotacao === 90 ? p.comprimento : p.altura;
+      const larguraOutra = p.rotacao === 90 ? p.altura : p.largura;
+      const alturaOutra = p.rotacao === 90 ? p.largura : p.altura;
 
       // Calcular distâncias entre centros
       const centroNovaX = novaX + larguraPeca / 2;
@@ -405,7 +405,7 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
   };
 
   return (
-    <div className="border-2 border-gray-900 rounded-lg bg-white">
+    <div className="border-2 border-gray-900 rounded-lg bg-gray-100">
       {/* CABEÇALHO */}
       <div className="border-b-2 border-gray-900 p-4 flex items-start justify-between">
         <div>
@@ -453,7 +453,7 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
       <div className="flex">
         {/* LEGENDA À ESQUERDA */}
         <div className="w-64 border-r-2 border-gray-900 bg-gray-50">
-          <div className="p-3 border-b-2 border-gray-900 bg-white">
+          <div className="p-3 border-b-2 border-gray-900 bg-gray-100">
             <h3 className="font-bold text-sm text-gray-900">LEGENDA</h3>
           </div>
           <div className="p-3 space-y-1 max-h-[600px] overflow-y-auto">
@@ -462,8 +462,8 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
               const nomeMaxLen = 18;
               const nomeExibir = nomePeca.length > nomeMaxLen ? nomePeca.substring(0, nomeMaxLen) + '...' : nomePeca;
               const dimensoes = peca.rotacao === 90
-                ? `${peca.altura} x ${peca.comprimento}`
-                : `${peca.comprimento} x ${peca.altura}`;
+                ? `${peca.altura} x ${peca.largura}`
+                : `${peca.largura} x ${peca.altura}`;
 
               return (
                 <div key={peca.id} className="text-xs font-medium text-gray-800 py-0.5">
@@ -479,7 +479,7 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
 
         {/* PLANO DE CORTE */}
         <div className="flex-1 p-4">
-          <div className="overflow-auto bg-white">
+          <div className="overflow-auto bg-gray-100">
             <canvas
               ref={canvasRef}
               onMouseDown={handleMouseDown}
@@ -500,7 +500,7 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
       </div>
 
       {/* ÁREA DE CONTROLES DE PEÇA */}
-      <div className="border-t border-gray-300 p-3 bg-white">
+      <div className="border-t border-gray-300 p-3 bg-gray-100">
         <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <p className="text-xs text-gray-600">

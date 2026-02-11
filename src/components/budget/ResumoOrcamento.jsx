@@ -5,7 +5,7 @@ export const ResumoOrcamento = ({ orcamentoAtual, materiais, precos, onSalvar, o
   const orcamento = calcularOrcamentoComDetalhes(orcamentoAtual, materiais, precos);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200">
+    <div className="bg-gray-100 rounded-lg shadow-sm p-6 border border-slate-200">
       <h3 className="text-2xl font-bold mb-6 text-slate-800">Resumo do Orçamento</h3>
 
       {/* Chapas - Aproveitamento */}

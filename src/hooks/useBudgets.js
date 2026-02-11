@@ -89,13 +89,19 @@ export const useBudgets = () => {
   const adicionarAmbiente = (nomeAmbiente) => {
     if (!orcamentoAtual) return;
 
+    // Validar se o nome não está vazio
+    if (!nomeAmbiente || !nomeAmbiente.trim()) {
+      alert('Por favor, insira um nome para o ambiente.');
+      return;
+    }
+
     const novoId = orcamentoAtual.ambientes.length > 0
       ? Math.max(...orcamentoAtual.ambientes.map(a => a.id)) + 1
       : 1;
 
     const novoAmbiente = {
       id: novoId,
-      nome: nomeAmbiente,
+      nome: nomeAmbiente.trim(),
       pecas: []
     };
 
