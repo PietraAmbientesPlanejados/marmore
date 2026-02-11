@@ -1,36 +1,52 @@
-import { useState, useEffect } from 'react';
-import { STORAGE_KEYS, PRECOS_PADRAO, CONFIG_CHAPA_PADRAO } from '../constants/config';
+import { useState, useEffect, useCallback } from 'react';
+import { PRECOS_PADRAO } from '../constants/config';
+import { getOrcamentos, saveOrcamento, deleteOrcamento, migrarLocalStorageParaSupabase } from '../utils/database';
 
 /**
  * Hook para gerenciar orçamentos
- * Controla CRUD de orçamentos com persistência no localStorage
+ * Controla CRUD de orçamentos com persistência no Supabase (ou localStorage como fallback)
  */
 export const useBudgets = () => {
   const [orcamentos, setOrcamentos] = useState([]);
   const [orcamentoAtual, setOrcamentoAtual] = useState(null);
   const [mostrarModalNovoOrcamento, setMostrarModalNovoOrcamento] = useState(false);
   const [nomeNovoOrcamento, setNomeNovoOrcamento] = useState('');
+  const [carregando, setCarregando] = useState(true);
 
-  // Carregar orçamentos do localStorage ao montar
+  // Referência para evitar salvar no banco durante o carregamento inicial
+  const [inicializado, setInicializado] = useState(false);
+
+  // Migrar dados e carregar orçamentos do banco ao montar
   useEffect(() => {
-    const orcamentosSalvos = localStorage.getItem(STORAGE_KEYS.ORCAMENTOS);
-    if (orcamentosSalvos) {
+    const carregar = async () => {
       try {
-        const dados = JSON.parse(orcamentosSalvos);
+        // Tentar migrar dados do localStorage para Supabase (só roda uma vez)
+        await migrarLocalStorageParaSupabase();
+
+        const dados = await getOrcamentos();
         if (Array.isArray(dados)) {
           setOrcamentos(dados);
         }
       } catch (error) {
         console.error('Erro ao carregar orçamentos:', error);
+      } finally {
+        setCarregando(false);
+        setInicializado(true);
       }
-    }
+    };
+    carregar();
   }, []);
 
-  // Salvar orçamentos automaticamente quando mudam
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.ORCAMENTOS, JSON.stringify(orcamentos));
-    console.log('💾 Orçamentos salvos automaticamente');
-  }, [orcamentos]);
+  // Salvar orçamento atual no banco quando muda (debounced via flag)
+  const salvarOrcamentoNoBanco = useCallback(async (orcamento) => {
+    if (!inicializado || !orcamento) return;
+    try {
+      await saveOrcamento(orcamento);
+      console.log('💾 Orçamento salvo automaticamente');
+    } catch (error) {
+      console.error('Erro ao salvar orçamento:', error);
+    }
+  }, [inicializado]);
 
   /**
    * Abre o modal para criar novo orçamento
@@ -53,7 +69,7 @@ export const useBudgets = () => {
    * @param {string} nome - Nome do orçamento (opcional, usa nomeNovoOrcamento se não fornecido)
    * @returns {Object} Novo orçamento criado
    */
-  const criarOrcamento = (nome) => {
+  const criarOrcamento = async (nome) => {
     const nomeOrcamento = nome || nomeNovoOrcamento;
 
     if (!nomeOrcamento.trim()) {
@@ -61,35 +77,41 @@ export const useBudgets = () => {
       return null;
     }
 
-    const novoId = orcamentos.length > 0
-      ? Math.max(...orcamentos.map(o => o.id)) + 1
-      : 1;
-
     const novoOrcamento = {
-      id: novoId,
       nome: nomeOrcamento,
       dataCriacao: new Date().toISOString(),
       ambientes: [],
       chapas: [],
-      precos: { ...PRECOS_PADRAO }, // Cada orçamento tem seus próprios preços
-      materiais: {} // Configuração de materiais específica do orçamento: { materialId: { comprimento, altura, custo, venda } }
+      precos: { ...PRECOS_PADRAO },
+      materiais: {}
     };
 
-    setOrcamentos(prev => [...prev, novoOrcamento]);
-    setOrcamentoAtual(novoOrcamento);
-    fecharModalNovoOrcamento();
+    const salvo = await saveOrcamento(novoOrcamento);
 
-    return novoOrcamento;
+    if (salvo) {
+      setOrcamentos(prev => [...prev, salvo]);
+      setOrcamentoAtual(salvo);
+    } else {
+      // Fallback local
+      const novoId = orcamentos.length > 0
+        ? Math.max(...orcamentos.map(o => o.id)) + 1
+        : 1;
+      const comId = { ...novoOrcamento, id: novoId };
+      setOrcamentos(prev => [...prev, comId]);
+      setOrcamentoAtual(comId);
+    }
+
+    fecharModalNovoOrcamento();
+    return salvo || novoOrcamento;
   };
 
   /**
    * Adiciona um ambiente ao orçamento atual
    * @param {string} nomeAmbiente - Nome do ambiente
    */
-  const adicionarAmbiente = (nomeAmbiente) => {
+  const adicionarAmbiente = async (nomeAmbiente) => {
     if (!orcamentoAtual) return;
 
-    // Validar se o nome não está vazio
     if (!nomeAmbiente || !nomeAmbiente.trim()) {
       alert('Por favor, insira um nome para o ambiente.');
       return;
@@ -111,18 +133,18 @@ export const useBudgets = () => {
     };
 
     setOrcamentoAtual(orcamentoAtualizado);
-
-    // Atualizar também na lista de orçamentos
     setOrcamentos(prev => prev.map(orc =>
       orc.id === orcamentoAtual.id ? orcamentoAtualizado : orc
     ));
+
+    await salvarOrcamentoNoBanco(orcamentoAtualizado);
   };
 
   /**
    * Remove um ambiente do orçamento atual
    * @param {number} ambienteId - ID do ambiente
    */
-  const removerAmbiente = (ambienteId) => {
+  const removerAmbiente = async (ambienteId) => {
     if (!orcamentoAtual) return;
 
     const orcamentoAtualizado = {
@@ -131,10 +153,11 @@ export const useBudgets = () => {
     };
 
     setOrcamentoAtual(orcamentoAtualizado);
-
     setOrcamentos(prev => prev.map(orc =>
       orc.id === orcamentoAtual.id ? orcamentoAtualizado : orc
     ));
+
+    await salvarOrcamentoNoBanco(orcamentoAtualizado);
   };
 
   /**
@@ -152,10 +175,10 @@ export const useBudgets = () => {
    * Exclui um orçamento
    * @param {number} orcamentoId - ID do orçamento
    */
-  const excluirOrcamento = (orcamentoId) => {
+  const excluirOrcamento = async (orcamentoId) => {
+    await deleteOrcamento(orcamentoId);
     setOrcamentos(prev => prev.filter(o => o.id !== orcamentoId));
 
-    // Se era o orçamento atual, limpar
     if (orcamentoAtual?.id === orcamentoId) {
       setOrcamentoAtual(null);
     }
@@ -164,27 +187,27 @@ export const useBudgets = () => {
   /**
    * Salva alterações do orçamento atual na lista
    */
-  const salvarOrcamentoAtual = () => {
+  const salvarOrcamentoAtual = async () => {
     if (!orcamentoAtual) return;
 
     setOrcamentos(prev => {
       const existe = prev.find(orc => orc.id === orcamentoAtual.id);
 
       if (existe) {
-        // Atualizar orçamento existente
         return prev.map(orc => orc.id === orcamentoAtual.id ? orcamentoAtual : orc);
       } else {
-        // Adicionar novo orçamento
         return [...prev, orcamentoAtual];
       }
     });
+
+    await salvarOrcamentoNoBanco(orcamentoAtual);
   };
 
   /**
    * Atualiza o nome do orçamento atual
    * @param {string} novoNome - Novo nome do orçamento
    */
-  const atualizarNomeOrcamento = (novoNome) => {
+  const atualizarNomeOrcamento = async (novoNome) => {
     if (!orcamentoAtual) return;
 
     const orcamentoAtualizado = {
@@ -193,14 +216,18 @@ export const useBudgets = () => {
     };
 
     setOrcamentoAtual(orcamentoAtualizado);
-    salvarOrcamentoAtual();
+    setOrcamentos(prev => prev.map(orc =>
+      orc.id === orcamentoAtual.id ? orcamentoAtualizado : orc
+    ));
+
+    await salvarOrcamentoNoBanco(orcamentoAtualizado);
   };
 
   /**
    * Atualiza os preços do orçamento atual
    * @param {Object} novosPrecos - Novos preços do orçamento
    */
-  const atualizarPrecosOrcamento = (novosPrecos) => {
+  const atualizarPrecosOrcamento = async (novosPrecos) => {
     if (!orcamentoAtual) return;
 
     const orcamentoAtualizado = {
@@ -209,11 +236,11 @@ export const useBudgets = () => {
     };
 
     setOrcamentoAtual(orcamentoAtualizado);
-
-    // Atualizar também na lista de orçamentos
     setOrcamentos(prev => prev.map(orc =>
       orc.id === orcamentoAtual.id ? orcamentoAtualizado : orc
     ));
+
+    await salvarOrcamentoNoBanco(orcamentoAtualizado);
   };
 
   /**
@@ -221,7 +248,7 @@ export const useBudgets = () => {
    * @param {number} materialId - ID do material
    * @param {Object} config - Configuração do material (comprimento, altura, custo, venda)
    */
-  const atualizarConfigMaterial = (materialId, config) => {
+  const atualizarConfigMaterial = async (materialId, config) => {
     if (!orcamentoAtual) return;
 
     const orcamentoAtualizado = {
@@ -233,11 +260,11 @@ export const useBudgets = () => {
     };
 
     setOrcamentoAtual(orcamentoAtualizado);
-
-    // Atualizar também na lista de orçamentos
     setOrcamentos(prev => prev.map(orc =>
       orc.id === orcamentoAtual.id ? orcamentoAtualizado : orc
     ));
+
+    await salvarOrcamentoNoBanco(orcamentoAtualizado);
   };
 
   return {
@@ -245,6 +272,7 @@ export const useBudgets = () => {
     orcamentoAtual,
     mostrarModalNovoOrcamento,
     nomeNovoOrcamento,
+    carregando,
     setOrcamentos,
     setOrcamentoAtual,
     setNomeNovoOrcamento,

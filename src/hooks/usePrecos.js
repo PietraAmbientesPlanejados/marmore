@@ -1,25 +1,29 @@
 import { useState, useEffect } from 'react';
-import { PRECOS_PADRAO, STORAGE_KEYS } from '../constants/config';
+import { PRECOS_PADRAO } from '../constants/config';
+import { getPrecos, savePrecos } from '../utils/database';
 
 /**
  * Hook para gerenciar configuração de preços do sistema
- * Controla preços de acabamentos e recortes com persistência no localStorage
+ * Controla preços de acabamentos e recortes com persistência no Supabase (ou localStorage como fallback)
  */
 export const usePrecos = () => {
   const [precos, setPrecos] = useState(PRECOS_PADRAO);
   const [precosSalvos, setPrecosSalvos] = useState(false);
   const [mostrarPainelPrecos, setMostrarPainelPrecos] = useState(false);
 
-  // Carregar preços salvos do localStorage ao montar
+  // Carregar preços salvos do banco ao montar
   useEffect(() => {
-    const precosSalvos = localStorage.getItem(STORAGE_KEYS.PRECOS);
-    if (precosSalvos) {
+    const carregar = async () => {
       try {
-        setPrecos(JSON.parse(precosSalvos));
+        const dados = await getPrecos();
+        if (dados) {
+          setPrecos(dados);
+        }
       } catch (error) {
         console.error('Erro ao carregar preços:', error);
       }
-    }
+    };
+    carregar();
   }, []);
 
   /**
@@ -33,17 +37,16 @@ export const usePrecos = () => {
       ...prev,
       [chave]: valorNumerico
     }));
-    setPrecosSalvos(false); // Indica que há mudanças não salvas
+    setPrecosSalvos(false);
   };
 
   /**
-   * Salva preços no localStorage com feedback visual
+   * Salva preços no banco com feedback visual
    */
-  const salvarPrecos = () => {
-    localStorage.setItem(STORAGE_KEYS.PRECOS, JSON.stringify(precos));
+  const salvarPrecos = async () => {
+    await savePrecos(precos);
     setPrecosSalvos(true);
 
-    // Remover feedback após 3 segundos
     setTimeout(() => {
       setPrecosSalvos(false);
     }, 3000);

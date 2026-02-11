@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { formatBRL } from './utils/formatters';
 import { organizarPecasEmChapas, calcularOrcamentoComDetalhes, calcularCustosPeca } from './utils/calculations';
 import { PRECOS_PADRAO, CONFIG_CHAPA_PADRAO } from './constants/config';
-import { storage } from './utils/storage';
+import { saveOrcamento } from './utils/database';
 import { usePrecos } from './hooks/usePrecos';
 import { useMaterials } from './hooks/useMaterials';
 import { useBudgets } from './hooks/useBudgets';
@@ -52,79 +52,20 @@ const SistemaOrcamentoMarmore = () => {
     espessuraDisco: 4 // espessura do disco de corte em mm (substitui o espacamento padrão)
   });
 
-  // Carregar materiais e orçamentos ao iniciar
+  // Auto-salvar orçamento atual no banco quando ele muda
+  const orcamentoAtualRef = useRef(null);
   useEffect(() => {
-    const materiaisSalvos = localStorage.getItem('pietra_materiais');
-    const orcamentosSalvos = localStorage.getItem('pietra_orcamentos');
-    
-    if (materiaisSalvos) {
-      try {
-        const dados = JSON.parse(materiaisSalvos);
-        if (Array.isArray(dados) && dados.length > 0) {
-          setMateriais(dados);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar materiais:', error);
-      }
+    if (!orcamentoAtual) return;
+    // Evitar salvar na primeira renderização (carregamento)
+    if (orcamentoAtualRef.current === null) {
+      orcamentoAtualRef.current = orcamentoAtual.id;
+      return;
     }
-    
-    if (orcamentosSalvos) {
-      try {
-        const dados = JSON.parse(orcamentosSalvos);
-        if (Array.isArray(dados)) {
-          // Migração automática: adicionar preços e materiais a orçamentos antigos
-          const orcamentosMigrados = dados.map(orc => {
-            const materiaisConfig = orc.materiais || {};
-
-            // Migrar materiais antigos que vêm das peças
-            if (orc.ambientes) {
-              orc.ambientes.forEach(amb => {
-                if (amb.pecas) {
-                  amb.pecas.forEach(peca => {
-                    if (peca.material && peca.material.comprimento && !materiaisConfig[peca.materialId]) {
-                      // Material antigo com dados completos - migrar para nova estrutura
-                      materiaisConfig[peca.materialId] = {
-                        comprimento: peca.material.comprimento,
-                        altura: peca.material.altura,
-                        custo: peca.material.custo || 250,
-                        venda: peca.material.venda || 333.33
-                      };
-                    } else if (peca.materialId && !materiaisConfig[peca.materialId]) {
-                      // Novo formato - adicionar config padrão se não existir
-                      materiaisConfig[peca.materialId] = { ...CONFIG_CHAPA_PADRAO };
-                    }
-                  });
-                }
-              });
-            }
-
-            return {
-              ...orc,
-              precos: orc.precos || { ...PRECOS_PADRAO },
-              materiais: materiaisConfig
-            };
-          });
-          setOrcamentos(orcamentosMigrados);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar orçamentos:', error);
-      }
-    }
-  }, []);
-
-  // Salvar materiais quando mudam
-  useEffect(() => {
-    if (materiais.length > 0) {
-      localStorage.setItem('pietra_materiais', JSON.stringify(materiais));
-      console.log('💾 Materiais salvos automaticamente');
-    }
-  }, [materiais]);
-
-  // Salvar orçamentos quando mudam
-  useEffect(() => {
-    localStorage.setItem('pietra_orcamentos', JSON.stringify(orcamentos));
-    console.log('💾 Orçamentos salvos automaticamente');
-  }, [orcamentos]);
+    // Salvar no banco de dados
+    saveOrcamento(orcamentoAtual).catch(err =>
+      console.error('Erro ao auto-salvar orçamento:', err)
+    );
+  }, [orcamentoAtual]);
 
   // Função para atualizar material e reorganizar orçamentos
   const atualizarMaterial = (materialId, novosDados) => {
@@ -2882,7 +2823,7 @@ const SistemaOrcamentoMarmore = () => {
               <span className="text-slate-400 text-sm">Desenvolvido por Caique Lacerda</span>
               <button
                 onClick={() => {
-                  storage.logout();
+                  localStorage.removeItem('pietra_logado');
                   window.location.reload();
                 }}
                 className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-lg hover:shadow-red-500/50 hover:scale-105 active:scale-95"
