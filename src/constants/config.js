@@ -1,6 +1,3 @@
-// Configurações do sistema
-export const SENHA_DO_SISTEMA = 'pietra2025';
-
 // Chaves do localStorage
 export const STORAGE_KEYS = {
   MATERIAIS: 'pietra_materiais',

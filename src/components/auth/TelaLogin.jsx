@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { SENHA_DO_SISTEMA } from '../../constants/config';
-import { storage } from '../../utils/storage';
+import { verificarSenha } from '../../utils/database';
 
 export const TelaLogin = ({ aoEntrar }) => {
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState(false);
+  const [verificando, setVerificando] = useState(false);
   const [tentativas, setTentativas] = useState(0);
   const [bloqueado, setBloqueado] = useState(false);
   const [segundosRestantes, setSegundosRestantes] = useState(0);
@@ -21,21 +21,33 @@ export const TelaLogin = ({ aoEntrar }) => {
     return () => clearTimeout(timer);
   }, [bloqueado, segundosRestantes]);
 
-  const tentar = () => {
-    if (bloqueado || !senha) return;
-    if (senha === SENHA_DO_SISTEMA) {
-      storage.setLogado(true);
-      aoEntrar();
-    } else {
-      const novas = tentativas + 1;
-      setTentativas(novas);
-      setErro(true);
-      setSenha('');
-      setTimeout(() => setErro(false), 2500);
-      if (novas >= 5) {
-        setBloqueado(true);
-        setSegundosRestantes(30);
+  const tentar = async () => {
+    if (bloqueado || !senha || verificando) return;
+
+    setVerificando(true);
+    try {
+      const senhaCorreta = await verificarSenha(senha);
+
+      if (senhaCorreta) {
+        localStorage.setItem('pietra_logado', 'true');
+        aoEntrar();
+      } else {
+        const novas = tentativas + 1;
+        setTentativas(novas);
+        setErro(true);
+        setSenha('');
+        setTimeout(() => setErro(false), 2500);
+        if (novas >= 5) {
+          setBloqueado(true);
+          setSegundosRestantes(30);
+        }
       }
+    } catch (error) {
+      console.error('Erro ao verificar senha:', error);
+      setErro(true);
+      setTimeout(() => setErro(false), 2500);
+    } finally {
+      setVerificando(false);
     }
   };
 
@@ -124,7 +136,7 @@ export const TelaLogin = ({ aoEntrar }) => {
               if (e.key === 'Enter') tentar();
             }}
             placeholder={bloqueado ? `Bloqueado... ${segundosRestantes}s` : '••••••••'}
-            disabled={bloqueado}
+            disabled={bloqueado || verificando}
             autoFocus
             style={{
               width: '100%',
@@ -172,7 +184,7 @@ export const TelaLogin = ({ aoEntrar }) => {
           {/* Botão */}
           <button
             onClick={tentar}
-            disabled={bloqueado || !senha}
+            disabled={bloqueado || !senha || verificando}
             style={{
               width: '100%',
               marginTop: '24px',
@@ -180,19 +192,19 @@ export const TelaLogin = ({ aoEntrar }) => {
               borderRadius: '12px',
               border: 'none',
               background:
-                bloqueado || !senha
+                bloqueado || !senha || verificando
                   ? '#475569'
                   : 'linear-gradient(135deg, #3b82f6, #2563eb)',
               color: '#fff',
               fontSize: '15px',
               fontWeight: '700',
-              cursor: bloqueado || !senha ? 'not-allowed' : 'pointer',
+              cursor: bloqueado || !senha || verificando ? 'not-allowed' : 'pointer',
               boxShadow:
-                bloqueado || !senha ? 'none' : '0 4px 15px rgba(59,130,246,0.4)',
+                bloqueado || !senha || verificando ? 'none' : '0 4px 15px rgba(59,130,246,0.4)',
               transition: 'all 0.2s'
             }}
           >
-            {bloqueado ? '🔒 Bloqueado' : 'Entrar'}
+            {bloqueado ? '🔒 Bloqueado' : verificando ? 'Verificando...' : 'Entrar'}
           </button>
         </div>
 

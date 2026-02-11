@@ -232,6 +232,29 @@ export async function savePrecos(precos) {
   return true;
 }
 
+// ============ AUTENTICAÇÃO ============
+
+export async function verificarSenha(senhaDigitada) {
+  if (!isSupabaseConfigured) {
+    // Fallback: senha padrão quando Supabase não está configurado
+    return senhaDigitada === 'pietra2025';
+  }
+
+  const { data, error } = await supabase
+    .from('config_sistema')
+    .select('senha_hash')
+    .eq('id', 1)
+    .single();
+
+  if (error || !data) {
+    console.error('Erro ao verificar senha:', error);
+    // Fallback em caso de erro de conexão
+    return senhaDigitada === 'pietra2025';
+  }
+
+  return senhaDigitada === data.senha_hash;
+}
+
 // ============ MIGRAÇÃO localStorage → Supabase ============
 
 export async function migrarLocalStorageParaSupabase() {
