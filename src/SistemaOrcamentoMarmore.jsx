@@ -28,7 +28,7 @@ const SistemaOrcamentoMarmore = () => {
   // Hooks customizados
   const { precos, precosSalvos, mostrarPainelPrecos, atualizarPreco, salvarPrecos, setMostrarPainelPrecos } = usePrecos();
   const { materiais, materialEditando, novoMaterial, setMateriais, setMaterialEditando, setNovoMaterial, adicionarMaterial, excluirMaterial, atualizarMaterialSimples } = useMaterials();
-  const { orcamentos, orcamentoAtual, mostrarModalNovoOrcamento, nomeNovoOrcamento, setOrcamentos, setOrcamentoAtual, setNomeNovoOrcamento, abrirModalNovoOrcamento, fecharModalNovoOrcamento, criarOrcamento, adicionarAmbiente, removerAmbiente, salvarOrcamentoAtual, atualizarPrecosOrcamento, atualizarConfigMaterial } = useBudgets();
+  const { orcamentos, orcamentoAtual, mostrarModalNovoOrcamento, nomeNovoOrcamento, setOrcamentos, setOrcamentoAtual, setNomeNovoOrcamento, abrirModalNovoOrcamento, fecharModalNovoOrcamento, criarOrcamento, adicionarAmbiente, removerAmbiente, excluirOrcamento, salvarOrcamentoAtual, atualizarPrecosOrcamento, atualizarConfigMaterial } = useBudgets();
 
   const [tela, setTela] = useState('lista'); // lista, novo-material, orcamento, plano-corte, editar-material
   const [mostrandoDetalhePeca, setMostrandoDetalhePeca] = useState(null);
@@ -2031,7 +2031,7 @@ const SistemaOrcamentoMarmore = () => {
             }}
             onExcluirOrcamento={(orcId) => {
               if (window.confirm('Deseja realmente excluir este orçamento?')) {
-                setOrcamentos(orcamentos.filter(o => o.id !== orcId));
+                excluirOrcamento(orcId);
               }
             }}
             onDuplicarOrcamento={(orcId) => {
@@ -2055,7 +2055,13 @@ const SistemaOrcamentoMarmore = () => {
                     id: Date.now() + Math.random()
                   }))
                 };
-                setOrcamentos([...orcamentos, novoOrc]);
+                saveOrcamento({ ...novoOrc, id: undefined }).then(salvo => {
+                  if (salvo) {
+                    setOrcamentos(prev => [...prev, salvo]);
+                  } else {
+                    setOrcamentos(prev => [...prev, novoOrc]);
+                  }
+                });
                 alert('✅ Orçamento duplicado com sucesso!');
               }
             }}
