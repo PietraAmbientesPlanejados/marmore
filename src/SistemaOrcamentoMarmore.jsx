@@ -9,6 +9,7 @@ import { useBudgets } from './hooks/useBudgets';
 import { HomePage } from './pages/HomePage';
 import logoImg from '/logo.png';
 import { MaterialFormPage } from './pages/MaterialFormPage';
+import { gerarRelatorioPDF as gerarRelatorioPDFUtil } from './utils/pdf/relatorio';
 
 // Ícones (emoji fallback)
 const PlusCircle = () => <span>➕</span>;
@@ -727,8 +728,12 @@ const SistemaOrcamentoMarmore = () => {
     // Salvar PDF
     const nomeArquivo = `Etiquetas_${orcamentoAtual.nome.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
     pdf.save(nomeArquivo);
-    
-    alert(`✅ PDF gerado com sucesso!\n${todasPecas.length} etiqueta(s) - 1 por página\nArquivo: ${nomeArquivo}`);
+  };
+
+  // Gerar PDF de relatório do orçamento
+  const gerarRelatorioPDF = () => {
+    const precosAtual = orcamentoAtual.precos || PRECOS_PADRAO;
+    gerarRelatorioPDFUtil(orcamentoAtual, materiais, precosAtual);
   };
 
   // Organizar peças em chapas automaticamente
@@ -1569,7 +1574,18 @@ const SistemaOrcamentoMarmore = () => {
 
                 <button
                   onClick={() => {
+                    gerarRelatorioPDF();
+                    setMenuMobileAberto(false);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 bg-slate-700 text-white px-4 py-3 hover:bg-slate-800 font-medium transition-all border-r border-slate-600"
+                >
+                  Relatório
+                </button>
+
+                <button
+                  onClick={() => {
                     setMostrarPainelPrecosOrcamento(!mostrarPainelPrecosOrcamento);
+                    setMostrarPainelMateriaisOrcamento(false);
                     setMenuMobileAberto(false);
                   }}
                   className="flex-1 flex items-center justify-center gap-2 bg-slate-700 text-white px-4 py-3 hover:bg-slate-800 font-medium transition-all border-r border-slate-600"
@@ -1580,6 +1596,7 @@ const SistemaOrcamentoMarmore = () => {
                 <button
                   onClick={() => {
                     setMostrarPainelMateriaisOrcamento(!mostrarPainelMateriaisOrcamento);
+                    setMostrarPainelPrecosOrcamento(false);
                     setMenuMobileAberto(false);
                   }}
                   className="flex-1 flex items-center justify-center gap-2 bg-slate-700 text-white px-4 py-3 hover:bg-slate-800 font-medium transition-all"
@@ -2191,14 +2208,17 @@ const SistemaOrcamentoMarmore = () => {
         {(tela === 'orcamento' || tela === 'plano-corte') && orcamentoAtual && (
           <>
             {/* Painel de Configuração de Preços do Orçamento */}
-            {mostrarPainelPrecosOrcamento && (
+            <div
+              className="overflow-hidden transition-all duration-500 ease-in-out"
+              style={{ maxHeight: mostrarPainelPrecosOrcamento ? '800px' : '0', opacity: mostrarPainelPrecosOrcamento ? 1 : 0 }}
+            >
                 <div className="mb-6 bg-slate-50 border border-slate-300 rounded-lg p-6">
                   <h3 className="text-lg font-semibold text-slate-800 mb-4">Configuração de Preços deste Orçamento</h3>
                   <p className="text-sm text-slate-600 mb-4">
                     Estes preços são específicos deste orçamento e não afetam outros orçamentos.
                   </p>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Acabamentos */}
                     <div className="bg-gray-100 p-4 rounded-lg border border-slate-200">
                       <h4 className="font-semibold text-slate-700 mb-3 text-sm">Acabamentos (R$/m)</h4>
@@ -2302,29 +2322,32 @@ const SistemaOrcamentoMarmore = () => {
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Botão Salvar */}
-                    <div className="bg-gray-100 p-4 rounded-lg border border-slate-200 flex flex-col justify-center items-center">
-                      <button
-                        onClick={salvarPrecosOrcamento}
-                        className={`px-6 py-2.5 rounded-lg font-medium transition-colors w-full ${
-                          precosSalvosOrcamento
-                            ? 'bg-slate-600 text-white cursor-default'
-                            : 'bg-slate-700 hover:bg-slate-800 text-white'
-                        }`}
-                      >
-                        {precosSalvosOrcamento ? 'Salvo' : 'Salvar Preços'}
-                      </button>
-                      <p className="text-xs text-slate-500 mt-3 text-center">
-                        Clique para salvar e atualizar o plano de corte
-                      </p>
-                    </div>
+                  {/* Botão Salvar */}
+                  <div className="mt-4 flex flex-col items-center">
+                    <button
+                      onClick={salvarPrecosOrcamento}
+                      className={`px-6 py-2.5 rounded-lg font-medium transition-colors w-full max-w-md ${
+                        precosSalvosOrcamento
+                          ? 'bg-slate-600 text-white cursor-default'
+                          : 'bg-slate-700 hover:bg-slate-800 text-white'
+                      }`}
+                    >
+                      {precosSalvosOrcamento ? 'Salvo' : 'Salvar Preços'}
+                    </button>
+                    <p className="text-xs text-slate-500 mt-2 text-center">
+                      Clique para salvar e atualizar o plano de corte
+                    </p>
                   </div>
                 </div>
-              )}
+            </div>
 
               {/* Painel de Configuração de Materiais do Orçamento */}
-              {mostrarPainelMateriaisOrcamento && (
+            <div
+              className="overflow-hidden transition-all duration-500 ease-in-out"
+              style={{ maxHeight: mostrarPainelMateriaisOrcamento ? '2000px' : '0', opacity: mostrarPainelMateriaisOrcamento ? 1 : 0 }}
+            >
                 <div className="mb-6 bg-slate-50 border border-slate-300 rounded-lg p-6">
                   <h3 className="text-lg font-semibold text-slate-800 mb-4">Configuração de Materiais deste Orçamento</h3>
                   <p className="text-sm text-slate-600 mb-4">
@@ -2485,7 +2508,7 @@ const SistemaOrcamentoMarmore = () => {
                     </p>
                   </div>
                 </div>
-              )}
+            </div>
           </>
         )}
 
@@ -2936,7 +2959,13 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
         )}
       </div>
 
-      {expandido && (
+      <div
+        className="overflow-hidden transition-all duration-500 ease-in-out"
+        style={{
+          maxHeight: expandido ? '5000px' : '0',
+          opacity: expandido ? 1 : 0
+        }}
+      >
         <div className="p-4 space-y-4 max-h-[800px] overflow-y-auto">
           {/* Botão Adicionar Peça */}
           {!mostrarForm && (
@@ -3492,7 +3521,7 @@ const AmbienteCard = ({ ambiente, materiais, materialConfigs, precos, onAdiciona
           })}
 
         </div>
-      )}
+      </div>
     </div>
   );
 };

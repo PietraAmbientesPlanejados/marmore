@@ -111,6 +111,4 @@ export const gerarEtiquetasPDF = (orcamentoAtual, materiais) => {
   // Salvar PDF
   const nomeArquivo = `Etiquetas_${orcamentoAtual.nome.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
   pdf.save(nomeArquivo);
-
-  alert(`✅ PDF gerado com sucesso!\n${todasPecas.length} etiqueta(s) - 1 por página\nArquivo: ${nomeArquivo}`);
 };
