@@ -580,6 +580,9 @@ const SistemaOrcamentoMarmore = () => {
       orc.id === orcamentoAtual.id ? novoOrcamento : orc
     ));
 
+    // Forçar atualização do resumo
+    setOrcamentoVersion(prev => prev + 1);
+
     // Reorganizar chapas se mudou dimensões ou material
     if (pecaEditada.largura !== mostrandoDetalhePeca.largura ||
         pecaEditada.altura !== mostrandoDetalhePeca.altura ||
@@ -731,9 +734,9 @@ const SistemaOrcamentoMarmore = () => {
   };
 
   // Gerar PDF de relatório do orçamento
-  const gerarRelatorioPDF = () => {
+  const gerarRelatorioPDF = async () => {
     const precosAtual = orcamentoAtual.precos || PRECOS_PADRAO;
-    gerarRelatorioPDFUtil(orcamentoAtual, materiais, precosAtual);
+    await gerarRelatorioPDFUtil(orcamentoAtual, materiais, precosAtual);
   };
 
   // Organizar peças em chapas automaticamente
@@ -1780,7 +1783,7 @@ const SistemaOrcamentoMarmore = () => {
                               <div key={tipo} className="bg-gray-100 rounded-lg p-3 border border-slate-300">
                                 <label className="block mb-2">
                                   <span className="font-semibold text-sm capitalize text-slate-700">{tipo}</span>
-                                  <span className="text-xs text-slate-500 ml-1">(R$ {precos[tipo]}/m)</span>
+                                  <span className="text-xs text-slate-500 ml-1">(R$ {(orcamentoAtual.precos || PRECOS_PADRAO)[tipo]}/m)</span>
                                 </label>
                                 <div className="flex items-center gap-2">
                                   <input
@@ -1805,7 +1808,7 @@ const SistemaOrcamentoMarmore = () => {
                                 </div>
                                 {pecaEditada?.acabamentosPersonalizados?.[tipo] > 0 && (
                                   <div className="mt-2 text-xs text-slate-700 bg-slate-50 p-2 rounded border border-slate-200">
-                                    <strong>Custo:</strong> {((parseFloat(pecaEditada.acabamentosPersonalizados[tipo]) || 0) * precos[tipo]).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    <strong>Custo:</strong> {((parseFloat(pecaEditada.acabamentosPersonalizados[tipo]) || 0) * (orcamentoAtual.precos || PRECOS_PADRAO)[tipo]).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                   </div>
                                 )}
                               </div>
@@ -1822,7 +1825,7 @@ const SistemaOrcamentoMarmore = () => {
                           // Se tem valor personalizado, mostrar ele
                           if (valorPersonalizado && parseFloat(valorPersonalizado) > 0) {
                             const metros = parseFloat(valorPersonalizado);
-                            const valor = metros * precos[tipo];
+                            const valor = metros * (orcamentoAtual.precos || PRECOS_PADRAO)[tipo];
                             return (
                               <div key={tipo} className="bg-gray-100 rounded p-2 border border-slate-300">
                                 <div className="font-semibold text-slate-800 capitalize text-sm mb-1">{tipo}</div>
