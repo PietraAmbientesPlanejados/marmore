@@ -1,4 +1,4 @@
-import { ESPACAMENTO_CHAPAS } from '../constants/config';
+import { ESPACAMENTO_CHAPAS, MARGEM_CHAPAS } from '../constants/config';
 
 /**
  * Converte área de mm² para m²
@@ -121,6 +121,7 @@ export const organizarPecasEmChapas = (orcamento, materiais) => {
   const todasPecas = orcamento.ambientes.flatMap(amb => amb.pecas);
   const chapas = [];
   const espacamento = ESPACAMENTO_CHAPAS;
+  const margem = MARGEM_CHAPAS;
 
   // Agrupar por material
   const pecasPorMaterial = {};
@@ -151,7 +152,7 @@ export const organizarPecasEmChapas = (orcamento, materiais) => {
 
       // Tentar colocar nas chapas existentes primeiro
       for (let chapa of chapas.filter(c => c.materialId === parseInt(materialId))) {
-        const pos = encontrarPosicaoNaChapa(chapa, peca, materialConfig, espacamento);
+        const pos = encontrarPosicaoNaChapa(chapa, peca, materialConfig, espacamento, margem);
         if (pos) {
           peca.chapaId = chapa.id;
           peca.posX = pos.x;
@@ -172,8 +173,8 @@ export const organizarPecasEmChapas = (orcamento, materiais) => {
         };
 
         peca.chapaId = novaChapa.id;
-        peca.posX = espacamento;
-        peca.posY = espacamento;
+        peca.posX = margem;
+        peca.posY = margem;
         novaChapa.pecas.push(peca);
         chapas.push(novaChapa);
       }
@@ -193,21 +194,87 @@ export const organizarPecasEmChapas = (orcamento, materiais) => {
 };
 
 /**
- * Encontra uma posição válida para uma peça dentro de uma chapa
- * Considera rotação da peça e espaçamento entre peças
+ * Distribui a perda (custo da sobra das chapas) entre os ambientes do orçamento.
+ * A distribuição é proporcional à área de peças de cada ambiente dentro de cada material:
+ * ambientes que usam mais material daquele tipo recebem mais perda daquele material.
+ *
+ * Retorna um mapa { [ambienteId]: valorPerda }.
  */
-export const encontrarPosicaoNaChapa = (chapa, peca, materialConfig, espacamento) => {
+export const calcularPerdaPorAmbiente = (orcamento) => {
+  const resultado = {};
+  if (!orcamento?.ambientes || !orcamento?.chapas) return resultado;
+
+  // Área de peças por material (rotação considerada) — total e por ambiente
+  const areaTotalPorMaterial = {};
+  const areaPorAmbienteMaterial = {};
+
+  orcamento.ambientes.forEach(amb => {
+    resultado[amb.id] = 0;
+    areaPorAmbienteMaterial[amb.id] = {};
+    (amb.pecas || []).forEach(peca => {
+      const largura = peca.rotacao === 90 ? peca.altura : peca.largura;
+      const altura = peca.rotacao === 90 ? peca.largura : peca.altura;
+      const area = calcularAreaM2(largura, altura) * (peca.quantidade || 1);
+      areaTotalPorMaterial[peca.materialId] = (areaTotalPorMaterial[peca.materialId] || 0) + area;
+      areaPorAmbienteMaterial[amb.id][peca.materialId] =
+        (areaPorAmbienteMaterial[amb.id][peca.materialId] || 0) + area;
+    });
+  });
+
+  // Custo de sobra por material (soma das sobras de todas as chapas daquele material).
+  // Materiais com naoCobrarPerda=true (em estoque) não geram perda.
+  const sobraPorMaterial = {};
+  orcamento.chapas.forEach(chapa => {
+    const materialConfig = orcamento.materiais?.[chapa.materialId] || {
+      comprimento: 3000,
+      altura: 2000,
+      custo: 250
+    };
+    if (materialConfig.naoCobrarPerda) return;
+    const areaTotalChapa = calcularAreaM2(materialConfig.comprimento, materialConfig.altura);
+    let areaPecasChapa = 0;
+    (chapa.pecas || []).forEach(peca => {
+      const largura = peca.rotacao === 90 ? peca.altura : peca.largura;
+      const altura = peca.rotacao === 90 ? peca.largura : peca.altura;
+      areaPecasChapa += calcularAreaM2(largura, altura);
+    });
+    const areaSobra = Math.max(0, areaTotalChapa - areaPecasChapa);
+    const custoSobra = areaSobra * (materialConfig.custo || 250);
+    sobraPorMaterial[chapa.materialId] = (sobraPorMaterial[chapa.materialId] || 0) + custoSobra;
+  });
+
+  // Distribuir proporcionalmente
+  orcamento.ambientes.forEach(amb => {
+    const porMaterial = areaPorAmbienteMaterial[amb.id] || {};
+    Object.keys(porMaterial).forEach(materialId => {
+      const areaAmbiente = porMaterial[materialId];
+      const areaTotal = areaTotalPorMaterial[materialId] || 0;
+      const sobra = sobraPorMaterial[materialId] || 0;
+      if (areaTotal > 0 && sobra > 0) {
+        resultado[amb.id] += (areaAmbiente / areaTotal) * sobra;
+      }
+    });
+  });
+
+  return resultado;
+};
+
+/**
+ * Encontra uma posição válida para uma peça dentro de uma chapa.
+ * - `margem`: distância das bordas da chapa (padrão: MARGEM_CHAPAS, 50mm)
+ * - `espacamento`: distância entre peças (padrão: ESPACAMENTO_CHAPAS, 4mm — disco de corte)
+ */
+export const encontrarPosicaoNaChapa = (chapa, peca, materialConfig, espacamento, margem = MARGEM_CHAPAS) => {
   const larguraChapa = materialConfig.comprimento;
   const alturaChapa = materialConfig.altura;
 
-  // Considerar rotação da peça
   const pecaLargura = peca.rotacao === 90 ? peca.altura : peca.largura;
   const pecaAltura = peca.rotacao === 90 ? peca.largura : peca.altura;
 
-  // Tentar diferentes posições, começando do canto superior esquerdo
-  for (let y = espacamento; y + pecaAltura + espacamento <= alturaChapa; y += 5) {
-    for (let x = espacamento; x + pecaLargura + espacamento <= larguraChapa; x += 5) {
-      // Verificar se não sobrepõe com outras peças (considerando espaçamento de 4mm)
+  // Tentar posições respeitando a margem das bordas
+  for (let y = margem; y + pecaAltura + margem <= alturaChapa; y += 5) {
+    for (let x = margem; x + pecaLargura + margem <= larguraChapa; x += 5) {
+      // Peças entre si: usam apenas espacamento (espessura do disco)
       const sobrepoe = chapa.pecas.some(p => {
         const pLargura = p.rotacao === 90 ? p.altura : p.largura;
         const pAltura = p.rotacao === 90 ? p.largura : p.altura;
@@ -286,19 +353,18 @@ export const calcularOrcamentoComDetalhes = (orcamentoAtual, materiais, precos) 
     // Cobrar peças pelo preço de VENDA por m²
     const vendaPecas = areaPecasM2 * (materialConfig.venda || 333.33);
 
-    // Cobrar sobra pelo preço de CUSTO por m²
-    const custoSobra = areaSobraM2 * (materialConfig.custo || 250);
+    // Sobra: só cobra se o material não estiver marcado como "em estoque".
+    const custoSobra = materialConfig.naoCobrarPerda
+      ? 0
+      : areaSobraM2 * (materialConfig.custo || 250);
 
     // Adicionar custo base das peças (necessário para cálculo de margem)
     const custoPecas = areaPecasM2 * (materialConfig.custo || 250);
 
     // Acumular totais
-    // Cliente paga: peças (preço venda) + sobra (preço custo)
     vendaChapas += vendaPecas + custoSobra;
-    // Custo real: peças (preço custo) + sobra (preço custo)
     custoChapas += custoPecas + custoSobra;
 
-    // Guardar detalhes para exibição
     detalhesChapas.push({
       chapaId: chapa.id,
       materialId: material.id,
@@ -310,6 +376,7 @@ export const calcularOrcamentoComDetalhes = (orcamentoAtual, materiais, precos) 
       custoSobra: custoSobra,
       custoPecas: custoPecas,
       vendaPecas: vendaPecas,
+      naoCobrarPerda: !!materialConfig.naoCobrarPerda,
       percentualAproveitamento: (areaPecasM2 / areaTotalChapa) * 100
     });
   });

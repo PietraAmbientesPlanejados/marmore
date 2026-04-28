@@ -1,17 +1,144 @@
-import { useState, useRef, useEffect } from 'react';
-import { Move } from '../../constants/icons';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { CORES_AMBIENTES } from '../../constants/colors';
 
-export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa, onGirarPeca, pecaArrastando, setPecaArrastando, todasChapas, onExcluirChapa, orcamentoNome = 'Orçamento', totalChapas = 1 }) => {
-  const [escala, setEscala] = useState(0.15);
+const CANVAS_OFFSET = 50;
+
+export const PlanoCorteChapa = ({
+  chapa,
+  numero,
+  ambientes,
+  onMoverPeca,
+  onMoverPecaNaChapa,
+  onGirarPeca,
+  onMoverParaAvulsas,
+  onExcluirChapa,
+  todasChapas,
+  setMostrandoDetalhePeca,
+  setModoEdicaoPeca,
+  setPecaEditada,
+  espessuraDisco = 4,
+  margemLaterais = 50,
+  onDragPreviewChange,
+}) => {
+  const escala = 0.3;
   const canvasRef = useRef(null);
   const [arrastandoPeca, setArrastandoPeca] = useState(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [pecaSelecionada, setPecaSelecionada] = useState(null);
-  const [chapaDestinoSelecionada, setChapaDestinoSelecionada] = useState(null);
+  const [pecaHover, setPecaHover] = useState(null);
+  const [menuContexto, setMenuContexto] = useState(null);
+  const [mouseForaDoCanvas, setMouseForaDoCanvas] = useState(false);
+  const [expandido, setExpandido] = useState(true);
+  // Ref espelho para acessar o valor atual dentro de listeners globais (sem re-registrar)
+  const mouseForaDoCanvasRef = useRef(false);
+
+  // Mapa peca.id → índice do ambiente ao qual ela pertence
+  const ambienteIdxPorPecaId = useMemo(() => {
+    const mapa = {};
+    (ambientes || []).forEach((amb, idx) => {
+      (amb.pecas || []).forEach((p) => {
+        mapa[p.id] = idx;
+      });
+    });
+    return mapa;
+  }, [ambientes]);
+
+  const corDaPeca = (pecaId) => {
+    const idx = ambienteIdxPorPecaId[pecaId] ?? 0;
+    return CORES_AMBIENTES[idx % CORES_AMBIENTES.length];
+  };
 
   useEffect(() => {
+    if (!expandido) return;
     desenharChapa();
-  }, [chapa, escala, arrastandoPeca, pecaSelecionada]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chapa, escala, arrastandoPeca, pecaSelecionada, pecaHover, ambienteIdxPorPecaId, mouseForaDoCanvas, expandido]);
+
+  // Fechar menu de contexto ao clicar fora
+  useEffect(() => {
+    if (!menuContexto) return;
+    const fechar = () => setMenuContexto(null);
+    document.addEventListener('mousedown', fechar);
+    document.addEventListener('scroll', fechar, true);
+    return () => {
+      document.removeEventListener('mousedown', fechar);
+      document.removeEventListener('scroll', fechar, true);
+    };
+  }, [menuContexto]);
+
+  // Durante drag: atualiza preview flutuante e processa drop em outra chapa no mouseup.
+  useEffect(() => {
+    if (!arrastandoPeca) return;
+
+    const detectarChapaAlvo = (e) => {
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const alvo = el?.closest('[data-chapa-id]');
+      return alvo?.getAttribute('data-chapa-id') || null;
+    };
+
+    const handleGlobalMove = (e) => {
+      // Preview flutuante só quando mouse está FORA do canvas de origem
+      // (dentro, o fantasma do canvas já mostra a peça com magnetismo).
+      if (!mouseForaDoCanvasRef.current) {
+        onDragPreviewChange?.(null);
+        return;
+      }
+      onDragPreviewChange?.({
+        peca: arrastandoPeca,
+        chapaOrigemId: chapa.id,
+        escala,
+        clientX: e.clientX,
+        clientY: e.clientY,
+      });
+    };
+
+    const handleGlobalUp = (e) => {
+      const chapaAlvoId = detectarChapaAlvo(e);
+      const targetIsCanvas = e.target?.tagName === 'CANVAS';
+
+      // Mesmo card + direto no canvas: deixa handleMouseUp local processar (valida posição/colisão)
+      if (chapaAlvoId === String(chapa.id) && targetIsCanvas) {
+        onDragPreviewChange?.(null);
+        return;
+      }
+
+      // Mesmo card + fora do canvas: cancelar drag
+      if (chapaAlvoId === String(chapa.id)) {
+        setArrastandoPeca(null);
+        onDragPreviewChange?.(null);
+        return;
+      }
+
+      // Bandeja de peças avulsas: voltar peça para lá
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const bandeja = el?.closest('[data-destino-avulsas]');
+      if (bandeja && onMoverParaAvulsas) {
+        onMoverParaAvulsas(arrastandoPeca.id);
+        setArrastandoPeca(null);
+        onDragPreviewChange?.(null);
+        return;
+      }
+
+      // Outra chapa: validar material e mover
+      if (chapaAlvoId) {
+        const chapaAlvo = (todasChapas || []).find((c) => String(c.id) === chapaAlvoId);
+        if (chapaAlvo && chapaAlvo.materialId === chapa.materialId) {
+          onMoverPeca(arrastandoPeca.id, chapaAlvo.id);
+        } else if (chapaAlvo) {
+          alert('⚠️ Só é possível mover peças entre chapas do mesmo material.');
+        }
+      }
+      setArrastandoPeca(null);
+      onDragPreviewChange?.(null);
+    };
+
+    window.addEventListener('mousemove', handleGlobalMove);
+    window.addEventListener('mouseup', handleGlobalUp);
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMove);
+      window.removeEventListener('mouseup', handleGlobalUp);
+    };
+  }, [arrastandoPeca, chapa.id, chapa.materialId, escala, todasChapas, onMoverPeca, onMoverParaAvulsas, onDragPreviewChange]);
 
   const desenharChapa = () => {
     const canvas = canvasRef.current;
@@ -24,132 +151,111 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
     canvas.width = largura + 100;
     canvas.height = altura + 100;
 
-    // Fundo da chapa
     ctx.fillStyle = '#f9fafb';
-    ctx.fillRect(50, 50, largura, altura);
+    ctx.fillRect(CANVAS_OFFSET, CANVAS_OFFSET, largura, altura);
     ctx.strokeStyle = '#374151';
     ctx.lineWidth = 2;
-    ctx.strokeRect(50, 50, largura, altura);
+    ctx.strokeRect(CANVAS_OFFSET, CANVAS_OFFSET, largura, altura);
 
-    // Desenhar grid
     ctx.strokeStyle = '#e5e7eb';
     ctx.lineWidth = 0.5;
     for (let i = 0; i <= chapa.material.comprimento; i += 500) {
-      const x = 50 + i * escala;
+      const x = CANVAS_OFFSET + i * escala;
       ctx.beginPath();
-      ctx.moveTo(x, 50);
-      ctx.lineTo(x, 50 + altura);
+      ctx.moveTo(x, CANVAS_OFFSET);
+      ctx.lineTo(x, CANVAS_OFFSET + altura);
       ctx.stroke();
     }
     for (let i = 0; i <= chapa.material.altura; i += 500) {
-      const y = 50 + i * escala;
+      const y = CANVAS_OFFSET + i * escala;
       ctx.beginPath();
-      ctx.moveTo(50, y);
-      ctx.lineTo(50 + largura, y);
+      ctx.moveTo(CANVAS_OFFSET, y);
+      ctx.lineTo(CANVAS_OFFSET + largura, y);
       ctx.stroke();
     }
-
-    // Desenhar peças
-    const cores = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899','#14b8a6'];
 
     chapa.pecas.forEach((peca, idx) => {
       if (arrastandoPeca?.id === peca.id) return;
 
-      const x = 50 + peca.posX * escala;
-      const y = 50 + peca.posY * escala;
-
-      // Considerar rotação para dimensões
+      const x = CANVAS_OFFSET + peca.posX * escala;
+      const y = CANVAS_OFFSET + peca.posY * escala;
       const w = (peca.rotacao === 90 ? peca.altura : peca.largura) * escala;
       const h = (peca.rotacao === 90 ? peca.largura : peca.altura) * escala;
 
+      const cor = corDaPeca(peca.id);
       const ehSelecionada = pecaSelecionada === peca.id;
-      const cor = ehSelecionada ? '#10b981' : cores[idx % cores.length];
+
       const r = parseInt(cor.slice(1, 3), 16);
       const g = parseInt(cor.slice(3, 5), 16);
       const b = parseInt(cor.slice(5, 7), 16);
 
-      // Preencher a peça com cor clara
-      ctx.fillStyle = `rgb(${r + (255-r)*0.7}, ${g + (255-g)*0.7}, ${b + (255-b)*0.7})`;
+      // Preenchimento: mais escuro se selecionada
+      const fatorClareamento = ehSelecionada ? 0.35 : 0.7;
+      ctx.fillStyle = `rgb(${r + (255 - r) * fatorClareamento}, ${g + (255 - g) * fatorClareamento}, ${b + (255 - b) * fatorClareamento})`;
       ctx.fillRect(x, y, w, h);
 
-      // Borda desenhada PARA DENTRO (inset de 1px) — nunca sobrepõe vizinhas
-      const bw = ehSelecionada ? 2 : 1.5;
+      // Borda: mais espessa se selecionada
+      const bw = ehSelecionada ? 3 : 1.5;
       ctx.strokeStyle = cor;
       ctx.lineWidth = bw;
-      ctx.strokeRect(x + bw/2, y + bw/2, w - bw, h - bw);
+      ctx.strokeRect(x + bw / 2, y + bw / 2, w - bw, h - bw);
 
-      // Desenhar acabamentos na peça
-      if (peca.acabamentos) {
-        const coresAcabamentos = {
-          esquadria: '#ef4444',
-          boleado: '#eab308',
-          polimento: '#3b82f6',
-          canal: '#f59e0b'
-        };
-
-        const offsetCanal = 3 * escala; // Canal fica mais interno
-
-        Object.keys(peca.acabamentos).forEach(tipoAcab => {
-          const acab = peca.acabamentos[tipoAcab];
-          if (!acab || !acab.ativo || !acab.lados) return;
-
-          const cor = coresAcabamentos[tipoAcab];
-          const isCanal = tipoAcab === 'canal';
-          const offset = isCanal ? offsetCanal : 0;
-
-          ctx.strokeStyle = cor;
-          ctx.lineWidth = 2;
-          ctx.setLineDash([4, 2]);
-
-          // Superior
-          if (acab.lados.superior) {
-            ctx.beginPath();
-            ctx.moveTo(x + offset, y + offset);
-            ctx.lineTo(x + w - offset, y + offset);
-            ctx.stroke();
-          }
-
-          // Inferior
-          if (acab.lados.inferior) {
-            ctx.beginPath();
-            ctx.moveTo(x + offset, y + h - offset);
-            ctx.lineTo(x + w - offset, y + h - offset);
-            ctx.stroke();
-          }
-
-          // Esquerda
-          if (acab.lados.esquerda) {
-            ctx.beginPath();
-            ctx.moveTo(x + offset, y + offset);
-            ctx.lineTo(x + offset, y + h - offset);
-            ctx.stroke();
-          }
-
-          // Direita
-          if (acab.lados.direita) {
-            ctx.beginPath();
-            ctx.moveTo(x + w - offset, y + offset);
-            ctx.lineTo(x + w - offset, y + h - offset);
-            ctx.stroke();
-          }
-
-          ctx.setLineDash([]);
-        });
-      }
-
-      // Texto com apenas o número da peça
-      ctx.fillStyle = `rgb(${Math.max(0,r-40)}, ${Math.max(0,g-40)}, ${Math.max(0,b-40)})`;
-      ctx.font = 'bold 16px Arial';
+      // Número da peça centralizado
+      ctx.fillStyle = `rgb(${Math.max(0, r - 40)}, ${Math.max(0, g - 40)}, ${Math.max(0, b - 40)})`;
+      ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText(`${idx + 1}`, x + w/2, y + h/2 + 5);
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`#${idx + 1}`, x + w / 2, y + h / 2);
+      ctx.textBaseline = 'alphabetic';
     });
 
-    // Desenhar peça sendo arrastada
-    if (arrastandoPeca) {
-      const w = (arrastandoPeca.rotacao === 90 ? arrastandoPeca.altura : arrastandoPeca.largura) * escala;
-      const h = (arrastandoPeca.rotacao === 90 ? arrastandoPeca.largura : arrastandoPeca.altura) * escala;
+    // Tooltip no hover — nome + dimensões (+ indicação de rotação)
+    if (pecaHover) {
+      const pecaIdx = chapa.pecas.findIndex((p) => p.id === pecaHover.id);
+      if (pecaIdx !== -1) {
+        const peca = chapa.pecas[pecaIdx];
+        const nomePeca = peca.nome || `Peça #${pecaIdx + 1}`;
+        const dimensoes =
+          peca.rotacao === 90
+            ? `${peca.altura} × ${peca.largura} mm  ↻ 90°`
+            : `${peca.largura} × ${peca.altura} mm`;
 
-      // Cor muda para vermelho se houver colisão
+        const tooltipX = pecaHover.mouseX + 15;
+        const tooltipY = pecaHover.mouseY - 10;
+
+        ctx.font = 'bold 12px Arial';
+        const larguraNome = ctx.measureText(nomePeca).width;
+        ctx.font = '11px Arial';
+        const larguraDim = ctx.measureText(dimensoes).width;
+        const padding = 8;
+        const tooltipWidth = Math.max(larguraNome, larguraDim) + padding * 2;
+        const tooltipHeight = 40;
+
+        ctx.fillStyle = 'rgba(30, 41, 59, 0.95)';
+        ctx.fillRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
+
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.8)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'left';
+        ctx.font = 'bold 12px Arial';
+        ctx.fillText(nomePeca, tooltipX + padding, tooltipY + 16);
+
+        ctx.fillStyle = 'rgba(203, 213, 225, 1)';
+        ctx.font = '11px Arial';
+        ctx.fillText(dimensoes, tooltipX + padding, tooltipY + 31);
+      }
+    }
+
+    // Peça sendo arrastada (fantasma) — esconde se mouse saiu do canvas (arrastando para outra chapa)
+    if (arrastandoPeca && !mouseForaDoCanvas) {
+      const w =
+        (arrastandoPeca.rotacao === 90 ? arrastandoPeca.altura : arrastandoPeca.largura) * escala;
+      const h =
+        (arrastandoPeca.rotacao === 90 ? arrastandoPeca.largura : arrastandoPeca.altura) * escala;
+
       const cor = arrastandoPeca.colisao ? 'rgba(239, 68, 68, 0.7)' : 'rgba(59, 130, 246, 0.6)';
       const corBorda = arrastandoPeca.colisao ? '#dc2626' : '#1e40af';
 
@@ -161,46 +267,52 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
       ctx.strokeRect(arrastandoPeca.x, arrastandoPeca.y, w, h);
       ctx.setLineDash([]);
 
-      // Texto de aviso
       if (arrastandoPeca.colisao) {
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 10px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('COLISÃO!', arrastandoPeca.x + w/2, arrastandoPeca.y + h/2);
+        ctx.fillText('COLISÃO!', arrastandoPeca.x + w / 2, arrastandoPeca.y + h / 2);
       }
     }
 
-    // Dimensões
+    // Dimensões da chapa
     ctx.fillStyle = '#374151';
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(`${chapa.material.comprimento} mm`, 50 + largura/2, 35);
+    ctx.fillText(`${chapa.material.comprimento} mm`, CANVAS_OFFSET + largura / 2, 35);
     ctx.save();
-    ctx.translate(35, 50 + altura/2);
-    ctx.rotate(-Math.PI/2);
+    ctx.translate(35, CANVAS_OFFSET + altura / 2);
+    ctx.rotate(-Math.PI / 2);
     ctx.fillText(`${chapa.material.altura} mm`, 0, 0);
     ctx.restore();
   };
 
+  const pecaNaPosicao = (x, y) => {
+    return chapa.pecas.find((peca) => {
+      const px = CANVAS_OFFSET + peca.posX * escala;
+      const py = CANVAS_OFFSET + peca.posY * escala;
+      const pw = (peca.rotacao === 90 ? peca.altura : peca.largura) * escala;
+      const ph = (peca.rotacao === 90 ? peca.largura : peca.altura) * escala;
+      return x >= px && x <= px + pw && y >= py && y <= py + ph;
+    });
+  };
+
   const handleMouseDown = (e) => {
+    if (e.button !== 0) return; // só processar clique esquerdo
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // Verificar se clicou em alguma peça
-    const pecaClicada = chapa.pecas.find(peca => {
-      const px = 50 + peca.posX * escala;
-      const py = 50 + peca.posY * escala;
-      const pw = (peca.rotacao === 90 ? peca.altura : peca.largura) * escala;
-      const ph = (peca.rotacao === 90 ? peca.largura : peca.altura) * escala;
-      return x >= px && x <= px + pw && y >= py && y <= py + ph;
-    });
+    const pecaClicada = pecaNaPosicao(x, y);
 
     if (pecaClicada) {
       setPecaSelecionada(pecaClicada.id);
-      const px = 50 + pecaClicada.posX * escala;
-      const py = 50 + pecaClicada.posY * escala;
+      setPecaHover(null);
+      setMouseForaDoCanvas(false);
+      mouseForaDoCanvasRef.current = false;
+      const px = CANVAS_OFFSET + pecaClicada.posX * escala;
+      const py = CANVAS_OFFSET + pecaClicada.posY * escala;
       setOffset({ x: x - px, y: y - py });
       setArrastandoPeca({ ...pecaClicada, x: px, y: py });
     } else {
@@ -208,160 +320,254 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
     }
   };
 
-  const handleMouseMove = (e) => {
-    if (!arrastandoPeca) return;
+  const handleContextMenu = (e) => {
+    e.preventDefault();
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left - offset.x;
-    const y = e.clientY - rect.top - offset.y;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
-    // Converter para coordenadas da chapa - SEM arredondamento para movimento suave
-    let novaX = Math.max(0, (x - 50) / escala);
-    let novaY = Math.max(0, (y - 50) / escala);
-    const espacamento = 4;
+    const pecaClicada = pecaNaPosicao(x, y);
+    if (!pecaClicada) return;
 
-    // MAGNETISMO - Detectar proximidade com outras peças e bordas
-    const toleranciaMagnetismo = 20; // pixels de tolerância para ativar o magnetismo
+    setPecaSelecionada(pecaClicada.id);
+    setMenuContexto({ x: e.clientX, y: e.clientY, peca: pecaClicada });
+  };
+
+  const handleMouseMove = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    if (!arrastandoPeca) {
+      const pecaSobMouse = pecaNaPosicao(mouseX, mouseY);
+      if (pecaSobMouse) {
+        setPecaHover({ id: pecaSobMouse.id, mouseX, mouseY });
+      } else {
+        setPecaHover(null);
+      }
+      return;
+    }
+
+    const x = mouseX - offset.x;
+    const y = mouseY - offset.y;
+
+    let novaX = Math.max(0, (x - CANVAS_OFFSET) / escala);
+    let novaY = Math.max(0, (y - CANVAS_OFFSET) / escala);
+    const espacamento = espessuraDisco;
+
+    const toleranciaMagnetismo = 40;
     const larguraPeca = arrastandoPeca.rotacao === 90 ? arrastandoPeca.altura : arrastandoPeca.largura;
     const alturaPeca = arrastandoPeca.rotacao === 90 ? arrastandoPeca.largura : arrastandoPeca.altura;
 
-    // MAGNETISMO NAS BORDAS DA CHAPA
-    // Borda esquerda
-    if (Math.abs(novaX - espacamento) < toleranciaMagnetismo) {
-      novaX = espacamento;
+    // Coleta o melhor candidato de snap por eixo usando a posição RAW do mouse para todos
+    // os checks de sobreposição. Isso evita que snaps sequenciais se sobreponham
+    // (problema "o último vence") quando há várias peças próximas.
+    // Snaps de borda da chapa e de espaçamento têm prioridade sobre alinhamentos de borda.
+    const origX = novaX;
+    const origY = novaY;
+
+    let xEspacamentoSnap = null; // { target, dist } — borda da chapa + espaçamento entre peças
+    let yEspacamentoSnap = null;
+    let xAlinhamentoSnap = null;
+    let yAlinhamentoSnap = null;
+
+    // Snaps de borda da chapa entram no mesmo pool de candidatos (prioridade = espaçamento)
+    const dBordaEsq = Math.abs(origX - margemLaterais);
+    if (dBordaEsq < toleranciaMagnetismo) {
+      xEspacamentoSnap = { target: margemLaterais, dist: dBordaEsq };
+    }
+    const dBordaDir = Math.abs(origX + larguraPeca + margemLaterais - chapa.material.comprimento);
+    if (dBordaDir < toleranciaMagnetismo) {
+      const targetDir = chapa.material.comprimento - larguraPeca - margemLaterais;
+      if (!xEspacamentoSnap || dBordaDir < xEspacamentoSnap.dist) {
+        xEspacamentoSnap = { target: targetDir, dist: dBordaDir };
+      }
+    }
+    const dBordaTopo = Math.abs(origY - margemLaterais);
+    if (dBordaTopo < toleranciaMagnetismo) {
+      yEspacamentoSnap = { target: margemLaterais, dist: dBordaTopo };
+    }
+    const dBordaInf = Math.abs(origY + alturaPeca + margemLaterais - chapa.material.altura);
+    if (dBordaInf < toleranciaMagnetismo) {
+      const targetInf = chapa.material.altura - alturaPeca - margemLaterais;
+      if (!yEspacamentoSnap || dBordaInf < yEspacamentoSnap.dist) {
+        yEspacamentoSnap = { target: targetInf, dist: dBordaInf };
+      }
     }
 
-    // Borda superior
-    if (Math.abs(novaY - espacamento) < toleranciaMagnetismo) {
-      novaY = espacamento;
-    }
-
-    // Borda direita
-    const distBordaDireita = Math.abs((novaX + larguraPeca + espacamento) - chapa.material.comprimento);
-    if (distBordaDireita < toleranciaMagnetismo) {
-      novaX = chapa.material.comprimento - larguraPeca - espacamento;
-    }
-
-    // Borda inferior
-    const distBordaInferior = Math.abs((novaY + alturaPeca + espacamento) - chapa.material.altura);
-    if (distBordaInferior < toleranciaMagnetismo) {
-      novaY = chapa.material.altura - alturaPeca - espacamento;
-    }
-
-    // MAGNETISMO ENTRE PEÇAS
-    chapa.pecas.forEach(p => {
+    chapa.pecas.forEach((p) => {
       if (p.id === arrastandoPeca.id) return;
 
       const larguraOutra = p.rotacao === 90 ? p.altura : p.largura;
       const alturaOutra = p.rotacao === 90 ? p.largura : p.altura;
 
-      // Magnetismo horizontal (alinhamento à direita da peça existente)
-      const distDireita = Math.abs(novaX - (p.posX + larguraOutra + espacamento));
-      if (distDireita < toleranciaMagnetismo &&
-          !(novaY + alturaPeca < p.posY || novaY > p.posY + alturaOutra)) {
-        novaX = p.posX + larguraOutra + espacamento;
+      // Checks de sobreposição sempre com posições ORIGINAIS (sem modificar novaX/novaY ainda)
+      const sobrepoeV = !(origY + alturaPeca < p.posY - toleranciaMagnetismo ||
+                          origY > p.posY + alturaOutra + toleranciaMagnetismo);
+      const sobrepoeH = !(origX + larguraPeca < p.posX - toleranciaMagnetismo ||
+                          origX > p.posX + larguraOutra + toleranciaMagnetismo);
+
+      // Snaps de espaçamento em X (requerem sobreposição vertical)
+      if (sobrepoeV) {
+        const dDir = Math.abs(origX - (p.posX + larguraOutra + espacamento));
+        if (dDir < toleranciaMagnetismo && (!xEspacamentoSnap || dDir < xEspacamentoSnap.dist)) {
+          xEspacamentoSnap = { target: p.posX + larguraOutra + espacamento, dist: dDir };
+        }
+        const dEsq = Math.abs(origX + larguraPeca + espacamento - p.posX);
+        if (dEsq < toleranciaMagnetismo && (!xEspacamentoSnap || dEsq < xEspacamentoSnap.dist)) {
+          xEspacamentoSnap = { target: p.posX - larguraPeca - espacamento, dist: dEsq };
+        }
       }
 
-      // Magnetismo horizontal (alinhamento à esquerda da peça existente)
-      const distEsquerda = Math.abs((novaX + larguraPeca + espacamento) - p.posX);
-      if (distEsquerda < toleranciaMagnetismo &&
-          !(novaY + alturaPeca < p.posY || novaY > p.posY + alturaOutra)) {
-        novaX = p.posX - larguraPeca - espacamento;
+      // Snaps de espaçamento em Y (requerem sobreposição horizontal)
+      if (sobrepoeH) {
+        const dBaixo = Math.abs(origY - (p.posY + alturaOutra + espacamento));
+        if (dBaixo < toleranciaMagnetismo && (!yEspacamentoSnap || dBaixo < yEspacamentoSnap.dist)) {
+          yEspacamentoSnap = { target: p.posY + alturaOutra + espacamento, dist: dBaixo };
+        }
+        const dCima = Math.abs(origY + alturaPeca + espacamento - p.posY);
+        if (dCima < toleranciaMagnetismo && (!yEspacamentoSnap || dCima < yEspacamentoSnap.dist)) {
+          yEspacamentoSnap = { target: p.posY - alturaPeca - espacamento, dist: dCima };
+        }
       }
 
-      // Magnetismo vertical (alinhamento abaixo da peça existente)
-      const distBaixo = Math.abs(novaY - (p.posY + alturaOutra + espacamento));
-      if (distBaixo < toleranciaMagnetismo &&
-          !(novaX + larguraPeca < p.posX || novaX > p.posX + larguraOutra)) {
-        novaY = p.posY + alturaOutra + espacamento;
+      // Alinhamentos de borda em Y (peças em colunas diferentes — sem sobreposição horizontal)
+      if (!sobrepoeH) {
+        const dTopo = Math.abs(origY - p.posY);
+        if (dTopo < toleranciaMagnetismo && (!yAlinhamentoSnap || dTopo < yAlinhamentoSnap.dist)) {
+          yAlinhamentoSnap = { target: p.posY, dist: dTopo };
+        }
+        const dBase = Math.abs(origY + alturaPeca - (p.posY + alturaOutra));
+        if (dBase < toleranciaMagnetismo && (!yAlinhamentoSnap || dBase < yAlinhamentoSnap.dist)) {
+          yAlinhamentoSnap = { target: p.posY + alturaOutra - alturaPeca, dist: dBase };
+        }
       }
 
-      // Magnetismo vertical (alinhamento acima da peça existente)
-      const distCima = Math.abs((novaY + alturaPeca + espacamento) - p.posY);
-      if (distCima < toleranciaMagnetismo &&
-          !(novaX + larguraPeca < p.posX || novaX > p.posX + larguraOutra)) {
-        novaY = p.posY - alturaPeca - espacamento;
-      }
-
-      // Alinhamento de bordas (mesmo Y)
-      if (Math.abs(novaY - p.posY) < toleranciaMagnetismo) {
-        novaY = p.posY;
-      }
-
-      // Alinhamento de bordas (mesmo X)
-      if (Math.abs(novaX - p.posX) < toleranciaMagnetismo) {
-        novaX = p.posX;
-      }
-
-      // Alinhamento de bordas inferiores
-      const distBordaInferiorPecas = Math.abs((novaY + alturaPeca) - (p.posY + alturaOutra));
-      if (distBordaInferiorPecas < toleranciaMagnetismo &&
-          !(novaX + larguraPeca < p.posX || novaX > p.posX + larguraOutra)) {
-        novaY = (p.posY + alturaOutra) - alturaPeca;
-      }
-
-      // Alinhamento de bordas direitas
-      const distBordaDireitaPecas = Math.abs((novaX + larguraPeca) - (p.posX + larguraOutra));
-      if (distBordaDireitaPecas < toleranciaMagnetismo &&
-          !(novaY + alturaPeca < p.posY || novaY > p.posY + alturaOutra)) {
-        novaX = (p.posX + larguraOutra) - larguraPeca;
+      // Alinhamentos de borda em X (peças em linhas diferentes — sem sobreposição vertical)
+      if (!sobrepoeV) {
+        const dEsqBorda = Math.abs(origX - p.posX);
+        if (dEsqBorda < toleranciaMagnetismo && (!xAlinhamentoSnap || dEsqBorda < xAlinhamentoSnap.dist)) {
+          xAlinhamentoSnap = { target: p.posX, dist: dEsqBorda };
+        }
+        const dDirBorda = Math.abs(origX + larguraPeca - (p.posX + larguraOutra));
+        if (dDirBorda < toleranciaMagnetismo && (!xAlinhamentoSnap || dDirBorda < xAlinhamentoSnap.dist)) {
+          xAlinhamentoSnap = { target: p.posX + larguraOutra - larguraPeca, dist: dDirBorda };
+        }
       }
     });
 
-    // Verificar se a nova posição causaria colisão
-    const temColisao = chapa.pecas.some(p => {
-      if (p.id === arrastandoPeca.id) return false;
+    // Aplica: espaçamento tem prioridade sobre alinhamento de borda
+    if (xEspacamentoSnap) novaX = xEspacamentoSnap.target;
+    else if (xAlinhamentoSnap) novaX = xAlinhamentoSnap.target;
 
+    if (yEspacamentoSnap) novaY = yEspacamentoSnap.target;
+    else if (yAlinhamentoSnap) novaY = yAlinhamentoSnap.target;
+
+    // Fase 2: se o snap de Y moveu a peça para dentro da zona de sobreposição vertical
+    // mas não havia snap de X na fase 1 (porque origY estava fora da zona), tenta de novo.
+    if (yEspacamentoSnap && !xEspacamentoSnap) {
+      chapa.pecas.forEach((p) => {
+        if (p.id === arrastandoPeca.id) return;
+        const larguraOutra = p.rotacao === 90 ? p.altura : p.largura;
+        const alturaOutra = p.rotacao === 90 ? p.largura : p.altura;
+
+        const sobrepoeVOrig = !(origY + alturaPeca < p.posY - toleranciaMagnetismo ||
+                                origY > p.posY + alturaOutra + toleranciaMagnetismo);
+        const sobrepoeVNovo = !(novaY + alturaPeca < p.posY - toleranciaMagnetismo ||
+                                novaY > p.posY + alturaOutra + toleranciaMagnetismo);
+
+        if (!sobrepoeVOrig && sobrepoeVNovo) {
+          const dDir = Math.abs(novaX - (p.posX + larguraOutra + espacamento));
+          if (dDir < toleranciaMagnetismo && (!xEspacamentoSnap || dDir < xEspacamentoSnap.dist)) {
+            xEspacamentoSnap = { target: p.posX + larguraOutra + espacamento, dist: dDir };
+            novaX = xEspacamentoSnap.target;
+          }
+          const dEsq = Math.abs(novaX + larguraPeca + espacamento - p.posX);
+          if (dEsq < toleranciaMagnetismo && (!xEspacamentoSnap || dEsq < xEspacamentoSnap.dist)) {
+            xEspacamentoSnap = { target: p.posX - larguraPeca - espacamento, dist: dEsq };
+            novaX = xEspacamentoSnap.target;
+          }
+        }
+      });
+    }
+
+    const temColisao = chapa.pecas.some((p) => {
+      if (p.id === arrastandoPeca.id) return false;
       const larguraOutra = p.rotacao === 90 ? p.altura : p.largura;
       const alturaOutra = p.rotacao === 90 ? p.largura : p.altura;
 
-      const centroNovaX = novaX + larguraPeca / 2;
-      const centroNovaY = novaY + alturaPeca / 2;
-      const centroPecaX = p.posX + larguraOutra / 2;
-      const centroPecaY = p.posY + alturaOutra / 2;
+      // AABB inflado pelo espaçamento — colisão se sobrepõem a bbox + gap
+      const aMinX = p.posX - espacamento;
+      const aMaxX = p.posX + larguraOutra + espacamento;
+      const aMinY = p.posY - espacamento;
+      const aMaxY = p.posY + alturaOutra + espacamento;
 
-      const distanciaX = Math.abs(centroNovaX - centroPecaX);
-      const distanciaY = Math.abs(centroNovaY - centroPecaY);
-
-      const distanciaMinX = (larguraPeca + larguraOutra) / 2 + espacamento;
-      const distanciaMinY = (alturaPeca + alturaOutra) / 2 + espacamento;
-
-      return distanciaX < distanciaMinX && distanciaY < distanciaMinY;
+      return (
+        novaX < aMaxX &&
+        novaX + larguraPeca > aMinX &&
+        novaY < aMaxY &&
+        novaY + alturaPeca > aMinY
+      );
     });
 
     const foraDosLimites =
-      novaX + larguraPeca + espacamento > chapa.material.comprimento ||
-      novaY + alturaPeca + espacamento > chapa.material.altura ||
-      novaX < espacamento ||
-      novaY < espacamento;
+      novaX + larguraPeca + margemLaterais > chapa.material.comprimento ||
+      novaY + alturaPeca + margemLaterais > chapa.material.altura ||
+      novaX < margemLaterais ||
+      novaY < margemLaterais;
 
     setArrastandoPeca({
       ...arrastandoPeca,
-      x: 50 + novaX * escala,
-      y: 50 + novaY * escala,
+      x: CANVAS_OFFSET + novaX * escala,
+      y: CANVAS_OFFSET + novaY * escala,
       posXReal: novaX,
       posYReal: novaY,
-      colisao: temColisao || foraDosLimites
+      colisao: temColisao || foraDosLimites,
     });
   };
 
-  const handleMouseUp = (e) => {
+  const handleMouseLeaveCanvas = () => {
+    setPecaHover(null);
+    // NÃO cancela arrastandoPeca: permite arrastar para fora e soltar em outra chapa
+    // (drop é tratado no listener global de mouseup).
+    // Esconder fantasma para não ficar preso na borda nem mostrar "COLISÃO" falso.
+    if (arrastandoPeca) {
+      setMouseForaDoCanvas(true);
+      mouseForaDoCanvasRef.current = true;
+    }
+  };
+
+  const handleMouseEnterCanvas = () => {
+    setMouseForaDoCanvas(false);
+    mouseForaDoCanvasRef.current = false;
+  };
+
+  const handleMouseUp = () => {
     if (!arrastandoPeca) return;
 
-    // Usar as coordenadas já calculadas pelo magnetismo
-    const novaX = arrastandoPeca.posXReal !== undefined ? arrastandoPeca.posXReal : Math.max(0, Math.round((arrastandoPeca.x - 50) / escala));
-    const novaY = arrastandoPeca.posYReal !== undefined ? arrastandoPeca.posYReal : Math.max(0, Math.round((arrastandoPeca.y - 50) / escala));
+    // Arredonda para inteiros (mm) pra evitar erros de floating-point nas comparações
+    const novaX = Math.round(
+      arrastandoPeca.posXReal !== undefined
+        ? arrastandoPeca.posXReal
+        : Math.max(0, (arrastandoPeca.x - CANVAS_OFFSET) / escala)
+    );
+    const novaY = Math.round(
+      arrastandoPeca.posYReal !== undefined
+        ? arrastandoPeca.posYReal
+        : Math.max(0, (arrastandoPeca.y - CANVAS_OFFSET) / escala)
+    );
 
-    const espacamento = 4;
+    const espacamento = espessuraDisco;
     const larguraPeca = arrastandoPeca.rotacao === 90 ? arrastandoPeca.altura : arrastandoPeca.largura;
     const alturaPeca = arrastandoPeca.rotacao === 90 ? arrastandoPeca.largura : arrastandoPeca.altura;
 
-    // Verificar se está dentro dos limites da chapa
     const dentroDosLimites =
-      novaX + larguraPeca + espacamento <= chapa.material.comprimento &&
-      novaY + alturaPeca + espacamento <= chapa.material.altura &&
-      novaX >= espacamento &&
-      novaY >= espacamento;
+      novaX + larguraPeca + margemLaterais <= chapa.material.comprimento &&
+      novaY + alturaPeca + margemLaterais <= chapa.material.altura &&
+      novaX >= margemLaterais &&
+      novaY >= margemLaterais;
 
     if (!dentroDosLimites) {
       alert('A peça não cabe nesta posição! Verifique os limites da chapa.');
@@ -369,202 +575,194 @@ export const PlanoCorteChapa = ({ chapa, numero, onMoverPeca, onMoverPecaNaChapa
       return;
     }
 
-    // Verificar colisão com outras peças (respeitando 4mm de espaçamento)
-    const temColisao = chapa.pecas.some(p => {
+    // Colisão via AABB com bordas infladas pelo espaçamento (gap mínimo exigido).
+    // Se alguma borda ficar a menos que `espacamento`mm com sobreposição no eixo perpendicular,
+    // as bboxes infladas se sobrepõem → colisão.
+    const temColisao = chapa.pecas.some((p) => {
       if (p.id === arrastandoPeca.id) return false;
-
       const larguraOutra = p.rotacao === 90 ? p.altura : p.largura;
       const alturaOutra = p.rotacao === 90 ? p.largura : p.altura;
 
-      // Calcular distâncias entre centros
-      const centroNovaX = novaX + larguraPeca / 2;
-      const centroNovaY = novaY + alturaPeca / 2;
-      const centroPecaX = p.posX + larguraOutra / 2;
-      const centroPecaY = p.posY + alturaOutra / 2;
+      const aMinX = Math.round(p.posX) - espacamento;
+      const aMaxX = Math.round(p.posX) + larguraOutra + espacamento;
+      const aMinY = Math.round(p.posY) - espacamento;
+      const aMaxY = Math.round(p.posY) + alturaOutra + espacamento;
 
-      const distanciaX = Math.abs(centroNovaX - centroPecaX);
-      const distanciaY = Math.abs(centroNovaY - centroPecaY);
-
-      // Distância mínima necessária (metade de cada peça + espaçamento de 4mm)
-      const distanciaMinX = (larguraPeca + larguraOutra) / 2 + espacamento;
-      const distanciaMinY = (alturaPeca + alturaOutra) / 2 + espacamento;
-
-      // Há colisão se ambas as distâncias forem menores que o mínimo
-      return distanciaX < distanciaMinX && distanciaY < distanciaMinY;
+      return (
+        novaX < aMaxX &&
+        novaX + larguraPeca > aMinX &&
+        novaY < aMaxY &&
+        novaY + alturaPeca > aMinY
+      );
     });
 
     if (temColisao) {
-      alert('Não é possível posicionar a peça aqui! Ela precisa estar a pelo menos 4mm de distância das outras peças.');
+      alert(
+        `Não é possível posicionar a peça aqui! Ela precisa estar a pelo menos ${espessuraDisco}mm de distância das outras peças (espessura do disco de corte).`
+      );
       setArrastandoPeca(null);
       return;
     }
 
-    // Posição válida - mover a peça
     onMoverPecaNaChapa(arrastandoPeca.id, chapa.id, novaX, novaY);
     setArrastandoPeca(null);
   };
 
-  return (
-    <div className="border-2 border-gray-900 rounded-lg bg-gray-100">
-      {/* CABEÇALHO */}
-      <div className="border-b-2 border-gray-900 p-4 flex items-start justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-1">PLANO DE CORTE - PIETRA AMBIENTES PLANEJADOS</h2>
-          <p className="text-sm font-semibold text-gray-700">PROJETO: {orcamentoNome.toUpperCase()}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-lg font-bold text-gray-900">CHAPA {numero} / {totalChapas}</p>
-          <p className="text-sm font-semibold text-gray-700">{chapa.material.nome.toUpperCase()}</p>
-        </div>
-      </div>
+  const abrirEdicaoPeca = (peca) => {
+    if (!(setMostrandoDetalhePeca && setModoEdicaoPeca && setPecaEditada)) return;
 
-      {/* CONTROLES */}
-      <div className="border-b border-gray-300 p-3 bg-gray-50 flex items-center justify-between">
+    const copia = JSON.parse(JSON.stringify(peca));
+
+    if (!copia.acabamentos) {
+      copia.acabamentos = {
+        polimento: { ativo: false, lados: { superior: false, inferior: false, esquerda: false, direita: false } },
+        esquadria: { ativo: false, lados: { superior: false, inferior: false, esquerda: false, direita: false } },
+        boleado: { ativo: false, lados: { superior: false, inferior: false, esquerda: false, direita: false } },
+        canal: { ativo: false, lados: { superior: false, inferior: false, esquerda: false, direita: false } },
+      };
+    }
+    copia.cuba = copia.cuba || 0;
+    copia.cubaEsculpida = copia.cubaEsculpida || 0;
+    copia.cooktop = copia.cooktop || 0;
+    copia.recorte = copia.recorte || 0;
+    copia.pes = copia.pes || 0;
+
+    if (!copia.acabamentosPersonalizados) {
+      const largura = copia.rotacao === 90 ? copia.altura : copia.largura;
+      const altura = copia.rotacao === 90 ? copia.largura : copia.altura;
+
+      copia.acabamentosPersonalizados = {};
+      ['esquadria', 'boleado', 'polimento', 'canal'].forEach((tipo) => {
+        if (copia.acabamentos[tipo]?.ativo) {
+          let totalMm = 0;
+          const lados = copia.acabamentos[tipo].lados;
+          if (lados.superior) totalMm += largura;
+          if (lados.inferior) totalMm += largura;
+          if (lados.esquerda) totalMm += altura;
+          if (lados.direita) totalMm += altura;
+          copia.acabamentosPersonalizados[tipo] = (totalMm / 1000).toFixed(2);
+        } else {
+          copia.acabamentosPersonalizados[tipo] = '';
+        }
+      });
+    }
+
+    setMostrandoDetalhePeca(peca);
+    setPecaEditada(copia);
+    setModoEdicaoPeca(true);
+  };
+
+  const chapasDestino = (todasChapas || []).filter(
+    (c) => c.materialId === chapa.materialId && c.id !== chapa.id
+  );
+
+  return (
+    <div className="border border-slate-200 rounded-lg p-4 bg-white min-w-0" data-chapa-id={chapa.id}>
+      <div className={`flex items-center justify-between gap-3 flex-wrap ${expandido ? 'mb-4' : ''}`}>
         <div className="flex items-center gap-3">
-          {chapa.pecas.length === 0 && onExcluirChapa && (
-            <button
-              onClick={() => {
-                if (window.confirm('Tem certeza que deseja excluir esta chapa vazia?')) {
-                  onExcluirChapa(chapa.id);
-                }
-              }}
-              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-2"
-              title="Excluir chapa vazia"
-            >
-              🗑️ Excluir Chapa Vazia
-            </button>
-          )}
+          <span className="font-bold text-lg text-slate-800">Chapa #{numero}</span>
+          <span className="bg-slate-800 text-white text-sm font-semibold px-3 py-1 rounded-full whitespace-nowrap">
+            {chapa.material.nome}
+          </span>
+          <span className="text-xs text-slate-500">{chapa.pecas.length} peças</span>
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-sm font-medium">Zoom:</label>
-          <input
-            type="range"
-            min="0.05"
-            max="0.3"
-            step="0.01"
-            value={escala}
-            onChange={(e) => setEscala(parseFloat(e.target.value))}
-            className="w-32"
+          {chapa.pecas.length === 0 && onExcluirChapa && (
+            <button
+              onClick={() => onExcluirChapa(chapa.id)}
+              className="flex items-center gap-1.5 text-sm text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+              title="Excluir esta chapa vazia"
+            >
+              🗑️ Excluir
+            </button>
+          )}
+          <button
+            onClick={() => setExpandido((v) => !v)}
+            className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-900 px-2 py-1 rounded hover:bg-slate-100 transition-colors"
+            title={expandido ? 'Retrair chapa' : 'Expandir chapa'}
+          >
+            <span className={`transition-transform duration-200 ${expandido ? 'rotate-180' : ''}`}>▼</span>
+            {expandido ? 'Retrair' : 'Expandir'}
+          </button>
+        </div>
+      </div>
+
+      {expandido && (
+        <div className="overflow-auto bg-gray-100 border border-slate-200 rounded max-w-full">
+          <canvas
+            ref={canvasRef}
+            data-chapa-id={chapa.id}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseLeaveCanvas}
+            onMouseEnter={handleMouseEnterCanvas}
+            onContextMenu={handleContextMenu}
+            className="cursor-move block mx-auto"
           />
         </div>
-      </div>
+      )}
 
-      {/* CONTEÚDO PRINCIPAL: LEGENDA + PLANO */}
-      <div className="flex">
-        {/* LEGENDA À ESQUERDA */}
-        <div className="w-64 border-r-2 border-gray-900 bg-gray-50">
-          <div className="p-3 border-b-2 border-gray-900 bg-gray-100">
-            <h3 className="font-bold text-sm text-gray-900">LEGENDA</h3>
+      {menuContexto && (
+        <div
+          className="fixed bg-white border border-slate-200 rounded-lg shadow-xl py-1 z-50 min-w-[220px]"
+          style={{ left: menuContexto.x, top: menuContexto.y }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="px-4 py-2 border-b border-slate-100">
+            <p className="text-xs text-slate-500">Peça</p>
+            <p className="text-sm font-semibold text-slate-800 truncate">
+              {menuContexto.peca.nome || 'Sem nome'}
+            </p>
           </div>
-          <div className="p-3 space-y-1 max-h-[600px] overflow-y-auto">
-            {chapa.pecas.map((peca, idx) => {
-              const nomePeca = peca.nome || `Peça #${idx + 1}`;
-              const nomeMaxLen = 18;
-              const nomeExibir = nomePeca.length > nomeMaxLen ? nomePeca.substring(0, nomeMaxLen) + '...' : nomePeca;
-              const dimensoes = peca.rotacao === 90
-                ? `${peca.altura} x ${peca.largura}`
-                : `${peca.largura} x ${peca.altura}`;
 
-              return (
-                <div key={peca.id} className="text-xs font-medium text-gray-800 py-0.5">
-                  <span className="font-bold">{idx + 1}</span> - {nomeExibir} {dimensoes}
-                </div>
-              );
-            })}
-            {chapa.pecas.length === 0 && (
-              <p className="text-xs text-gray-500 italic">Nenhuma peça nesta chapa</p>
-            )}
-          </div>
-        </div>
+          <button
+            onClick={() => {
+              onGirarPeca(menuContexto.peca.id, chapa.id);
+              setMenuContexto(null);
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2"
+          >
+            <span className="text-base">↻</span>
+            Rotacionar 90°
+          </button>
 
-        {/* PLANO DE CORTE */}
-        <div className="flex-1 p-4">
-          <div className="overflow-auto bg-gray-100">
-            <canvas
-              ref={canvasRef}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-              className="cursor-move"
-            />
-          </div>
-        </div>
-      </div>
+          <button
+            onClick={() => {
+              abrirEdicaoPeca(menuContexto.peca);
+              setMenuContexto(null);
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2"
+          >
+            <span className="text-base">✏️</span>
+            Editar propriedades
+          </button>
 
-      {/* RODAPÉ */}
-      <div className="border-t-2 border-gray-900 p-2 bg-gray-50 text-center">
-        <p className="text-xs text-gray-600">
-          Gerado pelo Sistema Pietra | {new Date().toLocaleDateString('pt-BR')}
-        </p>
-      </div>
-
-      {/* ÁREA DE CONTROLES DE PEÇA */}
-      <div className="border-t border-gray-300 p-3 bg-gray-100">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <p className="text-xs text-gray-600">
-            Arraste peças livremente. Magnetismo ativo (20mm): alinha com outras peças e bordas.
-          </p>
-          <p className="text-xs text-gray-500 mt-1">
-            Dica: O magnetismo facilita o alinhamento, mas você pode posicionar livremente em qualquer lugar!
-          </p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {pecaSelecionada && (
+          {chapasDestino.length > 0 && (
             <>
-              <button
-                onClick={() => {
-                  onGirarPeca(pecaSelecionada, chapa.id);
-                }}
-                className="flex items-center gap-1 bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700"
-              >
-                <span className="rotate-90 inline-block"></span>
-                Girar Peça (90°)
-              </button>
-
-              {/* Botão para mover para outra chapa */}
-              {todasChapas && todasChapas.length > 1 && todasChapas.filter(c => c.materialId === chapa.materialId && c.id !== chapa.id).length > 0 && (
-                <div className="relative">
+              <div className="border-t border-slate-100 my-1" />
+              <div className="px-4 py-1 text-xs font-semibold text-slate-500 uppercase">
+                Mover para
+              </div>
+              {chapasDestino.map((chapaDestino) => {
+                const numeroChapa = (todasChapas || []).findIndex((c) => c.id === chapaDestino.id) + 1;
+                return (
                   <button
-                    onClick={() => setChapaDestinoSelecionada(chapaDestinoSelecionada ? null : 'abrir')}
-                    className="flex items-center gap-1 bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700"
+                    key={chapaDestino.id}
+                    onClick={() => {
+                      onMoverPeca(menuContexto.peca.id, chapaDestino.id);
+                      setMenuContexto(null);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
                   >
-                    <Move size={14} />
-                    Mover para Outra Chapa
+                    Chapa #{numeroChapa} — {chapaDestino.material.nome}
                   </button>
-
-                  {chapaDestinoSelecionada === 'abrir' && (
-                    <div className="absolute bottom-full mb-2 right-0 bg-white border border-gray-300 rounded shadow-lg p-2 z-10 min-w-[200px]">
-                      <p className="text-xs font-semibold mb-2 text-gray-700">Selecione a chapa de destino:</p>
-                      <p className="text-xs text-blue-600 mb-2">O sistema encontrará automaticamente a melhor posição disponível</p>
-                      {todasChapas
-                        .filter(c => c.materialId === chapa.materialId && c.id !== chapa.id)
-                        .map((chapaDestino, idx) => (
-                          <button
-                            key={chapaDestino.id}
-                            onClick={() => {
-                              const pecaAtual = chapa.pecas.find(p => p.id === pecaSelecionada);
-                              if (pecaAtual) {
-                                // Sistema encontra automaticamente a melhor posição
-                                onMoverPeca(pecaSelecionada, chapaDestino.id);
-                                setPecaSelecionada(null);
-                                setChapaDestinoSelecionada(null);
-                              }
-                            }}
-                            className="w-full text-left px-2 py-1 text-sm hover:bg-blue-50 rounded"
-                          >
-                            Chapa #{todasChapas.findIndex(c => c.id === chapaDestino.id) + 1} - {chapaDestino.material.nome}
-                          </button>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              )}
+                );
+              })}
             </>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 };

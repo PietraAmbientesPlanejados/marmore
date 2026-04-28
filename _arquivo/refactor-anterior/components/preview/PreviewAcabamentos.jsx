@@ -26,12 +26,12 @@ export const PreviewAcabamentos = ({ peca, mostrarSempre = false, mini = false }
     const areaW = canvasWidth - margemLeft - margemRight;
     const areaH = canvasHeight - margemTop - margemBottom;
 
-    const escalaX = areaW / largura;
-    const escalaY = areaH / altura;
+    const escalaX = areaW / altura;
+    const escalaY = areaH / largura;
     const escala = Math.min(escalaX, escalaY, mini ? 0.5 : 0.55);
 
-    const w = largura * escala;
-    const h = altura * escala;
+    const w = altura * escala;
+    const h = largura * escala;
     const offsetX = margemLeft + (areaW - w) / 2;
     const offsetY = margemTop + (areaH - h) / 2;
 
@@ -76,7 +76,7 @@ export const PreviewAcabamentos = ({ peca, mostrarSempre = false, mini = false }
     const offsetCanal = mini ? 3 : 10;
 
     if (peca.acabamentos) {
-      Object.keys(peca.acabamentos).forEach(tipoAcab => {
+      Object.keys(peca.acabamentos).forEach((tipoAcab) => {
         const acab = peca.acabamentos[tipoAcab];
         if (!acab.ativo) return;
 
@@ -94,18 +94,21 @@ export const PreviewAcabamentos = ({ peca, mostrarSempre = false, mini = false }
           ctx.lineTo(offsetX + w - offset, offsetY + offset);
           ctx.stroke();
         }
+
         if (acab.lados.inferior) {
           ctx.beginPath();
           ctx.moveTo(offsetX + offset, offsetY + h - offset);
           ctx.lineTo(offsetX + w - offset, offsetY + h - offset);
           ctx.stroke();
         }
+
         if (acab.lados.esquerda) {
           ctx.beginPath();
           ctx.moveTo(offsetX + offset, offsetY + offset);
           ctx.lineTo(offsetX + offset, offsetY + h - offset);
           ctx.stroke();
         }
+
         if (acab.lados.direita) {
           ctx.beginPath();
           ctx.moveTo(offsetX + w - offset, offsetY + offset);
@@ -123,16 +126,16 @@ export const PreviewAcabamentos = ({ peca, mostrarSempre = false, mini = false }
       ctx.textAlign = 'center';
 
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(offsetX + w/2 - 35, offsetY - 22, 70, 16);
+      ctx.fillRect(offsetX + w / 2 - 35, offsetY - 22, 70, 16);
       ctx.strokeStyle = '#64748b';
       ctx.lineWidth = 1;
-      ctx.strokeRect(offsetX + w/2 - 35, offsetY - 22, 70, 16);
+      ctx.strokeRect(offsetX + w / 2 - 35, offsetY - 22, 70, 16);
       ctx.fillStyle = '#1e293b';
-      ctx.fillText(`${largura} mm`, offsetX + w/2, offsetY - 11);
+      ctx.fillText(`${largura} mm`, offsetX + w / 2, offsetY - 11);
 
       ctx.save();
-      ctx.translate(offsetX - 22, offsetY + h/2);
-      ctx.rotate(-Math.PI/2);
+      ctx.translate(offsetX - 22, offsetY + h / 2);
+      ctx.rotate(-Math.PI / 2);
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(-35, -9, 70, 18);
       ctx.strokeStyle = '#64748b';
@@ -142,33 +145,35 @@ export const PreviewAcabamentos = ({ peca, mostrarSempre = false, mini = false }
       ctx.fillText(`${altura} mm`, 0, 3);
       ctx.restore();
 
-      if (peca.nome) {
+      if (peca.nome && !mini) {
         ctx.font = 'bold 12px Arial';
         ctx.textAlign = 'center';
         const nomeExibir = peca.nome.length > 20 ? peca.nome.substring(0, 20) + '...' : peca.nome;
 
         const textWidth = ctx.measureText(nomeExibir).width;
         ctx.fillStyle = 'rgba(59, 130, 246, 0.92)';
-        ctx.fillRect(offsetX + w/2 - textWidth/2 - 6, offsetY + h/2 - 9, textWidth + 12, 18);
+        ctx.fillRect(offsetX + w / 2 - textWidth / 2 - 6, offsetY + h / 2 - 9, textWidth + 12, 18);
 
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(nomeExibir, offsetX + w/2, offsetY + h/2 + 3);
+        ctx.fillText(nomeExibir, offsetX + w / 2, offsetY + h / 2 + 3);
       }
     }
   };
 
   return (
     <div className={`${mini ? 'border border-gray-300 rounded' : 'border-2 border-gray-300 rounded-lg shadow-md'} bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden`} style={mini ? {} : { maxWidth: '260px' }}>
-      <canvas
-        ref={canvasRef}
-        className="w-full"
-        style={mini ? {} : { maxWidth: '260px' }}
-      />
-      {!mini && peca.acabamentos && Object.values(peca.acabamentos).some(a => a.ativo) && (
+      <canvas ref={canvasRef} className="w-full" style={mini ? {} : { maxWidth: '260px' }} />
+      {!mostrarSempre && !mini && (
+        <div className="p-3 border-t-2 border-gray-200 bg-gray-100">
+          <p className="text-xs text-gray-600 text-center font-medium">👁️ Pré-visualização da peça</p>
+          <p className="text-xs text-gray-500 text-center mt-1">Use os botões abaixo para selecionar os lados de cada acabamento</p>
+        </div>
+      )}
+      {!mini && peca.acabamentos && Object.values(peca.acabamentos).some((a) => a.ativo) && (
         <div className="p-2 bg-gray-100 border-t border-gray-200">
           <p className="text-xs font-semibold text-gray-600 mb-1">Acabamentos:</p>
           <div className="flex flex-wrap gap-2">
-            {Object.keys(peca.acabamentos).map(tipo => {
+            {Object.keys(peca.acabamentos).map((tipo) => {
               const acab = peca.acabamentos[tipo];
               if (!acab.ativo) return null;
               const cores = { esquadria: '#ef4444', boleado: '#eab308', polimento: '#3b82f6', canal: '#f59e0b' };

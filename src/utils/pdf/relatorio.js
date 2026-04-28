@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { calcularCustosPeca, calcularOrcamentoComDetalhes, calcularAreaM2 } from '../calculations';
+import { calcularCustosPeca, calcularOrcamentoComDetalhes, calcularAreaM2, calcularPerdaPorAmbiente } from '../calculations';
 import { formatBRL } from '../formatters';
 
 /**
@@ -108,16 +108,17 @@ export const gerarRelatorioPDF = async (orcamentoAtual, materiais, precos) => {
   y += 6;
 
   // ===== PEÇAS POR AMBIENTE =====
+  const perdaPorAmbiente = calcularPerdaPorAmbiente(orcamentoAtual);
+
   const col = {
     nome:     margin + 1,
     dim:      margin + 34,
     material: margin + 55,
-    area:     margin + 96,
-    qtd:      margin + 110,
-    matVal:   margin + 120,
-    acab:     margin + 140,
-    rec:      margin + 156,
-    total:    margin + 172,
+    area:     margin + 98,
+    matVal:   margin + 112,
+    acab:     margin + 132,
+    rec:      margin + 152,
+    total:    margin + 170,
   };
 
   orcamentoAtual.ambientes.forEach((ambiente) => {
@@ -126,6 +127,13 @@ export const gerarRelatorioPDF = async (orcamentoAtual, materiais, precos) => {
 
     checkNewPage(20);
 
+    // Pré-calcula m² do ambiente para exibir na barra do título
+    const totalAreaAmbiente = pecasAmbiente.reduce((sum, peca) => {
+      const larg = peca.rotacao === 90 ? peca.altura : peca.largura;
+      const alt  = peca.rotacao === 90 ? peca.largura : peca.altura;
+      return sum + calcularAreaM2(larg, alt) * (peca.quantidade || 1);
+    }, 0);
+
     // Título do ambiente
     pdf.setFillColor(230, 230, 230);
     pdf.rect(margin, y - 5, contentW, 8, 'F');
@@ -133,6 +141,8 @@ export const gerarRelatorioPDF = async (orcamentoAtual, materiais, precos) => {
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'bold');
     pdf.text(ambiente.nome.toUpperCase(), margin + 2, y);
+    pdf.setFontSize(9);
+    pdf.text(`${totalAreaAmbiente.toFixed(2)} m²`, rightEdge - 2, y, { align: 'right' });
     y += 7;
 
     // Cabeçalho da tabela
@@ -147,7 +157,6 @@ export const gerarRelatorioPDF = async (orcamentoAtual, materiais, precos) => {
     pdf.text('DIMENSÕES', col.dim, y);
     pdf.text('MATERIAL', col.material, y);
     pdf.text('ÁREA', col.area, y);
-    pdf.text('QTD', col.qtd, y);
     pdf.text('VALOR MAT.', col.matVal, y);
     pdf.text('ACABAM.', col.acab, y);
     pdf.text('RECORTES', col.rec, y);
@@ -155,8 +164,10 @@ export const gerarRelatorioPDF = async (orcamentoAtual, materiais, precos) => {
     y += 5.5;
 
     // Linhas das peças
+    let totalMatAmbiente = 0;
     let totalAcabAmbiente = 0;
     let totalRecAmbiente = 0;
+    let totalVendaAmbiente = 0;
     pecasAmbiente.forEach((peca, pecaIdx) => {
       const material = materiais.find(m => m.id === peca.materialId);
       const materialConfig = orcamentoAtual.materiais?.[peca.materialId] || {
@@ -192,42 +203,44 @@ export const gerarRelatorioPDF = async (orcamentoAtual, materiais, precos) => {
       pdf.text(`${Math.round(largura)} x ${Math.round(altura)}`, col.dim, y);
       pdf.text(matExibir, col.material, y);
       pdf.text(`${(area * qtd).toFixed(2)}m²`, col.area, y);
-      pdf.text(`${qtd}`, col.qtd, y);
       pdf.text(formatBRL(custos.custoMaterial * qtd), col.matVal, y);
 
       const totalAcab = custos.acabamentos * qtd;
       const totalRec = custos.recortes * qtd;
+      const totalPeca = custos.total * qtd;
+      totalMatAmbiente += custos.custoMaterial * qtd;
       totalAcabAmbiente += totalAcab;
       totalRecAmbiente += totalRec;
+      totalVendaAmbiente += totalPeca;
       pdf.text(totalAcab > 0 ? formatBRL(totalAcab) : '-', col.acab, y);
       pdf.text(totalRec > 0 ? formatBRL(totalRec) : '-', col.rec, y);
 
       // Total da peça
-      const totalPeca = custos.total * qtd;
       pdf.setFont('helvetica', 'bold');
       pdf.text(formatBRL(totalPeca), col.total, y);
 
       y += 6.5;
     });
 
-    // Total em m² do ambiente
-    const totalAreaAmbiente = pecasAmbiente.reduce((sum, peca) => {
-      const largura = peca.rotacao === 90 ? peca.altura : peca.largura;
-      const altura = peca.rotacao === 90 ? peca.largura : peca.altura;
-      const qtd = peca.quantidade || 1;
-      return sum + calcularAreaM2(largura, altura) * qtd;
-    }, 0);
-
     checkNewPage(10);
+    const perdaAmbiente = perdaPorAmbiente[ambiente.id] || 0;
+    const totalVendaComPerda = totalVendaAmbiente + perdaAmbiente;
+
     pdf.setFillColor(215, 215, 215);
     pdf.rect(margin, y - 2, contentW, 7, 'F');
     pdf.setTextColor(0, 0, 0);
-    pdf.setFontSize(8);
+    pdf.setFontSize(7.5);
     pdf.setFont('helvetica', 'bold');
-    let textoTotalAmbiente = `Total: ${totalAreaAmbiente.toFixed(2)} m²`;
-    if (totalAcabAmbiente > 0) textoTotalAmbiente += `   |   Acabamentos: ${formatBRL(totalAcabAmbiente)}`;
-    if (totalRecAmbiente > 0) textoTotalAmbiente += `   |   Recortes: ${formatBRL(totalRecAmbiente)}`;
-    pdf.text(textoTotalAmbiente, margin + 2, y + 3);
+
+    const linhaTotal = [
+      `Material: ${formatBRL(totalMatAmbiente)}`,
+      totalAcabAmbiente > 0 ? `Acabamentos: ${formatBRL(totalAcabAmbiente)}` : null,
+      totalRecAmbiente > 0 ? `Recortes: ${formatBRL(totalRecAmbiente)}` : null,
+      perdaAmbiente > 0 ? `Perda: ${formatBRL(perdaAmbiente)}` : null,
+      `Total de Venda: ${formatBRL(totalVendaComPerda)}`,
+    ].filter(Boolean).join('   |   ');
+    pdf.text(linhaTotal, margin + contentW / 2, y + 3, { align: 'center' });
+
     y += 14; // espaço entre ambientes
   });
 

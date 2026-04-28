@@ -69,7 +69,7 @@ export const useBudgets = () => {
    * @param {string} nome - Nome do orçamento (opcional, usa nomeNovoOrcamento se não fornecido)
    * @returns {Object} Novo orçamento criado
    */
-  const criarOrcamento = async (nome) => {
+  const criarOrcamento = async (nome, precosIniciais) => {
     const nomeOrcamento = nome || nomeNovoOrcamento;
 
     if (!nomeOrcamento.trim()) {
@@ -82,7 +82,7 @@ export const useBudgets = () => {
       dataCriacao: new Date().toISOString(),
       ambientes: [],
       chapas: [],
-      precos: { ...PRECOS_PADRAO },
+      precos: { ...(precosIniciais || PRECOS_PADRAO) },
       materiais: {}
     };
 
@@ -160,6 +160,24 @@ export const useBudgets = () => {
     await salvarOrcamentoNoBanco(orcamentoAtualizado);
   };
 
+  const renomearAmbiente = async (ambienteId, novoNome) => {
+    if (!orcamentoAtual || !novoNome.trim()) return;
+
+    const orcamentoAtualizado = {
+      ...orcamentoAtual,
+      ambientes: orcamentoAtual.ambientes.map(amb =>
+        amb.id === ambienteId ? { ...amb, nome: novoNome.trim() } : amb
+      )
+    };
+
+    setOrcamentoAtual(orcamentoAtualizado);
+    setOrcamentos(prev => prev.map(orc =>
+      orc.id === orcamentoAtual.id ? orcamentoAtualizado : orc
+    ));
+
+    await salvarOrcamentoNoBanco(orcamentoAtualizado);
+  };
+
   /**
    * Carrega um orçamento para edição
    * @param {number} orcamentoId - ID do orçamento
@@ -201,6 +219,19 @@ export const useBudgets = () => {
     });
 
     await salvarOrcamentoNoBanco(orcamentoAtual);
+  };
+
+  /**
+   * Renomeia qualquer orçamento da lista pelo ID
+   */
+  const renomearOrcamento = async (id, novoNome) => {
+    if (!novoNome.trim()) return;
+    const orc = orcamentos.find(o => o.id === id);
+    if (!orc) return;
+    const atualizado = { ...orc, nome: novoNome.trim() };
+    setOrcamentos(prev => prev.map(o => o.id === id ? atualizado : o));
+    if (orcamentoAtual?.id === id) setOrcamentoAtual(atualizado);
+    await salvarOrcamentoNoBanco(atualizado);
   };
 
   /**
@@ -281,6 +312,8 @@ export const useBudgets = () => {
     criarOrcamento,
     adicionarAmbiente,
     removerAmbiente,
+    renomearAmbiente,
+    renomearOrcamento,
     carregarOrcamento,
     excluirOrcamento,
     salvarOrcamentoAtual,

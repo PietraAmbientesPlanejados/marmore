@@ -21,8 +21,11 @@ export const PRECOS_PADRAO = {
   pes: 200
 };
 
-// Espaçamento entre peças nas chapas (mm)
+// Espaçamento entre peças nas chapas (mm) — espessura do disco de corte
 export const ESPACAMENTO_CHAPAS = 4;
+
+// Margem das bordas da chapa até a primeira peça (mm)
+export const MARGEM_CHAPAS = 50;
 
 // Configuração padrão de dimensões e preços de chapas
 export const CONFIG_CHAPA_PADRAO = {

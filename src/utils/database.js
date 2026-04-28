@@ -1,214 +1,161 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { db, isFirebaseConfigured } from '../lib/firebase';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  deleteDoc,
+} from 'firebase/firestore';
 import { PRECOS_PADRAO, STORAGE_KEYS } from '../constants/config';
 
 /**
- * Camada de acesso ao banco de dados (Supabase)
- * Quando o Supabase não está configurado, usa localStorage como fallback
+ * Camada de acesso ao banco de dados (Firebase Firestore).
+ * Se o Firebase não estiver configurado (.env ausente), cai no fallback localStorage.
+ *
+ * Convenção de IDs: usamos IDs numéricos (Date.now()) como ID do documento Firestore.
+ * Isso mantém compatibilidade com o código que compara ids com números (===).
  */
+
+const ORCAMENTO_PADRAO_BASE = {
+  ambientes: [],
+  chapas: [],
+  precos: {},
+  materiaisConfig: {},
+};
 
 // ============ MATERIAIS ============
 
 export async function getMateriais() {
-  if (!isSupabaseConfigured) {
+  if (!isFirebaseConfigured) {
     return getFromLocalStorage(STORAGE_KEYS.MATERIAIS, []);
   }
-
-  const { data, error } = await supabase
-    .from('materiais')
-    .select('*')
-    .order('id');
-
-  if (error) {
+  try {
+    const snap = await getDocs(collection(db, 'materiais'));
+    const data = snap.docs.map((d) => ({ id: Number(d.id), ...d.data() }));
+    return data.sort((a, b) => a.id - b.id);
+  } catch (error) {
     console.error('Erro ao buscar materiais:', error);
     return getFromLocalStorage(STORAGE_KEYS.MATERIAIS, []);
   }
-
-  return data;
 }
 
 export async function saveMaterial(material) {
-  if (!isSupabaseConfigured) {
+  if (!isFirebaseConfigured) {
     return saveToLocalStorageArray(STORAGE_KEYS.MATERIAIS, material);
   }
-
-  if (material.id) {
-    // Atualizar existente
-    const { data, error } = await supabase
-      .from('materiais')
-      .update({ nome: material.nome })
-      .eq('id', material.id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Erro ao atualizar material:', error);
-      return null;
-    }
-    return data;
-  } else {
-    // Inserir novo
-    const { data, error } = await supabase
-      .from('materiais')
-      .insert({ nome: material.nome })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Erro ao inserir material:', error);
-      return null;
-    }
-    return data;
+  try {
+    const id = material.id || Date.now();
+    const payload = { nome: material.nome };
+    await setDoc(doc(db, 'materiais', String(id)), payload, { merge: true });
+    return { id, ...payload };
+  } catch (error) {
+    console.error('Erro ao salvar material:', error);
+    return null;
   }
 }
 
 export async function deleteMaterial(materialId) {
-  if (!isSupabaseConfigured) {
+  if (!isFirebaseConfigured) {
     return deleteFromLocalStorageArray(STORAGE_KEYS.MATERIAIS, materialId);
   }
-
-  const { error } = await supabase
-    .from('materiais')
-    .delete()
-    .eq('id', materialId);
-
-  if (error) {
+  try {
+    await deleteDoc(doc(db, 'materiais', String(materialId)));
+    return true;
+  } catch (error) {
     console.error('Erro ao excluir material:', error);
     return false;
   }
-  return true;
 }
 
 // ============ ORÇAMENTOS ============
 
 export async function getOrcamentos() {
-  if (!isSupabaseConfigured) {
+  if (!isFirebaseConfigured) {
     return getFromLocalStorage(STORAGE_KEYS.ORCAMENTOS, []);
   }
-
-  const { data, error } = await supabase
-    .from('orcamentos')
-    .select('*')
-    .order('id');
-
-  if (error) {
+  try {
+    const snap = await getDocs(collection(db, 'orcamentos'));
+    const data = snap.docs.map((d) => {
+      const raw = d.data();
+      return {
+        id: Number(d.id),
+        nome: raw.nome,
+        dataCriacao: raw.dataCriacao,
+        ambientes: raw.ambientes || [],
+        chapas: raw.chapas || [],
+        precos: raw.precos || { ...PRECOS_PADRAO },
+        materiais: raw.materiaisConfig || {},
+      };
+    });
+    return data.sort((a, b) => a.id - b.id);
+  } catch (error) {
     console.error('Erro ao buscar orçamentos:', error);
     return getFromLocalStorage(STORAGE_KEYS.ORCAMENTOS, []);
   }
-
-  // Mapear campos do banco para o formato esperado pelo app
-  return data.map(orc => ({
-    id: orc.id,
-    nome: orc.nome,
-    dataCriacao: orc.data_criacao,
-    ambientes: orc.ambientes || [],
-    chapas: orc.chapas || [],
-    precos: orc.precos || { ...PRECOS_PADRAO },
-    materiais: orc.materiais_config || {}
-  }));
 }
 
 export async function saveOrcamento(orcamento) {
-  if (!isSupabaseConfigured) {
+  if (!isFirebaseConfigured) {
     return saveToLocalStorageArray(STORAGE_KEYS.ORCAMENTOS, orcamento);
   }
-
-  const dbData = {
-    nome: orcamento.nome,
-    data_criacao: orcamento.dataCriacao || new Date().toISOString(),
-    ambientes: orcamento.ambientes || [],
-    chapas: orcamento.chapas || [],
-    precos: orcamento.precos || {},
-    materiais_config: orcamento.materiais || {}
-  };
-
-  if (orcamento.id) {
-    // Atualizar existente
-    const { data, error } = await supabase
-      .from('orcamentos')
-      .update(dbData)
-      .eq('id', orcamento.id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Erro ao atualizar orçamento:', error);
-      return null;
-    }
-
-    return {
-      id: data.id,
-      nome: data.nome,
-      dataCriacao: data.data_criacao,
-      ambientes: data.ambientes || [],
-      chapas: data.chapas || [],
-      precos: data.precos || {},
-      materiais: data.materiais_config || {}
+  try {
+    const id = orcamento.id || Date.now();
+    const payload = {
+      ...ORCAMENTO_PADRAO_BASE,
+      nome: orcamento.nome,
+      dataCriacao: orcamento.dataCriacao || new Date().toISOString(),
+      ambientes: orcamento.ambientes || [],
+      chapas: orcamento.chapas || [],
+      precos: orcamento.precos || {},
+      materiaisConfig: orcamento.materiais || {},
     };
-  } else {
-    // Inserir novo
-    const { data, error } = await supabase
-      .from('orcamentos')
-      .insert(dbData)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Erro ao inserir orçamento:', error);
-      return null;
-    }
-
+    await setDoc(doc(db, 'orcamentos', String(id)), payload);
     return {
-      id: data.id,
-      nome: data.nome,
-      dataCriacao: data.data_criacao,
-      ambientes: data.ambientes || [],
-      chapas: data.chapas || [],
-      precos: data.precos || {},
-      materiais: data.materiais_config || {}
+      id,
+      nome: payload.nome,
+      dataCriacao: payload.dataCriacao,
+      ambientes: payload.ambientes,
+      chapas: payload.chapas,
+      precos: payload.precos,
+      materiais: payload.materiaisConfig,
     };
+  } catch (error) {
+    console.error('Erro ao salvar orçamento:', error);
+    return null;
   }
 }
 
 export async function deleteOrcamento(orcamentoId) {
-  if (!isSupabaseConfigured) {
+  if (!isFirebaseConfigured) {
     return deleteFromLocalStorageArray(STORAGE_KEYS.ORCAMENTOS, orcamentoId);
   }
-
-  const { error } = await supabase
-    .from('orcamentos')
-    .delete()
-    .eq('id', orcamentoId);
-
-  if (error) {
+  try {
+    await deleteDoc(doc(db, 'orcamentos', String(orcamentoId)));
+    return true;
+  } catch (error) {
     console.error('Erro ao excluir orçamento:', error);
     return false;
   }
-  return true;
 }
 
-// ============ PREÇOS ============
+// ============ PREÇOS PADRÃO ============
 
 export async function getPrecos() {
-  if (!isSupabaseConfigured) {
+  if (!isFirebaseConfigured) {
     return getFromLocalStorage(STORAGE_KEYS.PRECOS, PRECOS_PADRAO);
   }
-
-  const { data, error } = await supabase
-    .from('precos_padrao')
-    .select('config')
-    .eq('id', 1)
-    .single();
-
-  if (error) {
+  try {
+    const snap = await getDoc(doc(db, 'config', 'precos_padrao'));
+    return snap.exists() ? snap.data().config || PRECOS_PADRAO : PRECOS_PADRAO;
+  } catch (error) {
     console.error('Erro ao buscar preços:', error);
     return PRECOS_PADRAO;
   }
-
-  return data?.config || PRECOS_PADRAO;
 }
 
 export async function savePrecos(precos) {
-  if (!isSupabaseConfigured) {
+  if (!isFirebaseConfigured) {
     try {
       localStorage.setItem(STORAGE_KEYS.PRECOS, JSON.stringify(precos));
       return true;
@@ -216,105 +163,81 @@ export async function savePrecos(precos) {
       return false;
     }
   }
-
-  const { error } = await supabase
-    .from('precos_padrao')
-    .upsert({
-      id: 1,
+  try {
+    await setDoc(doc(db, 'config', 'precos_padrao'), {
       config: precos,
-      updated_at: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     });
-
-  if (error) {
+    return true;
+  } catch (error) {
     console.error('Erro ao salvar preços:', error);
     return false;
   }
-  return true;
 }
 
 // ============ AUTENTICAÇÃO ============
 
+const SENHA_PADRAO = 'pietra2025';
+
 export async function verificarSenha(senhaDigitada) {
-  if (!isSupabaseConfigured) {
-    // Fallback: senha padrão quando Supabase não está configurado
-    return senhaDigitada === 'pietra2025';
+  if (!isFirebaseConfigured) {
+    return senhaDigitada === SENHA_PADRAO;
   }
-
-  const { data, error } = await supabase
-    .from('config_sistema')
-    .select('senha_hash')
-    .eq('id', 1)
-    .single();
-
-  if (error || !data) {
+  try {
+    const snap = await getDoc(doc(db, 'config', 'sistema'));
+    if (!snap.exists()) return senhaDigitada === SENHA_PADRAO;
+    return senhaDigitada === snap.data().senhaHash;
+  } catch (error) {
     console.error('Erro ao verificar senha:', error);
-    // Fallback em caso de erro de conexão
-    return senhaDigitada === 'pietra2025';
+    return senhaDigitada === SENHA_PADRAO;
   }
-
-  return senhaDigitada === data.senha_hash;
 }
 
-// ============ MIGRAÇÃO localStorage → Supabase ============
+// ============ MIGRAÇÃO localStorage → Firebase ============
 
-export async function migrarLocalStorageParaSupabase() {
-  if (!isSupabaseConfigured) return;
+export async function migrarLocalStorageParaFirebase() {
+  if (!isFirebaseConfigured) return;
+  if (localStorage.getItem('pietra_migrado_firebase') === 'true') return;
 
-  const jaFoiMigrado = localStorage.getItem('pietra_migrado_supabase');
-  if (jaFoiMigrado === 'true') return;
-
-  console.log('Iniciando migração do localStorage para Supabase...');
-
+  console.log('Iniciando migração do localStorage para Firebase...');
   try {
-    // Migrar materiais
     const materiaisLocal = getFromLocalStorage(STORAGE_KEYS.MATERIAIS, []);
     if (materiaisLocal.length > 0) {
-      // Verificar se já existem materiais no banco
-      const { data: materiaisExistentes } = await supabase.from('materiais').select('id');
-      if (!materiaisExistentes || materiaisExistentes.length === 0) {
+      const snap = await getDocs(collection(db, 'materiais'));
+      if (snap.empty) {
         for (const mat of materiaisLocal) {
-          await supabase.from('materiais').insert({ nome: mat.nome });
+          await saveMaterial(mat);
         }
         console.log(`Migrados ${materiaisLocal.length} materiais`);
       }
     }
 
-    // Migrar orçamentos
     const orcamentosLocal = getFromLocalStorage(STORAGE_KEYS.ORCAMENTOS, []);
     if (orcamentosLocal.length > 0) {
-      const { data: orcExistentes } = await supabase.from('orcamentos').select('id');
-      if (!orcExistentes || orcExistentes.length === 0) {
+      const snap = await getDocs(collection(db, 'orcamentos'));
+      if (snap.empty) {
         for (const orc of orcamentosLocal) {
-          await supabase.from('orcamentos').insert({
-            nome: orc.nome,
-            data_criacao: orc.dataCriacao || new Date().toISOString(),
-            ambientes: orc.ambientes || [],
-            chapas: orc.chapas || [],
-            precos: orc.precos || {},
-            materiais_config: orc.materiais || {}
-          });
+          await saveOrcamento(orc);
         }
         console.log(`Migrados ${orcamentosLocal.length} orçamentos`);
       }
     }
 
-    // Migrar preços
     const precosLocal = getFromLocalStorage(STORAGE_KEYS.PRECOS, null);
     if (precosLocal) {
-      await supabase.from('precos_padrao').upsert({
-        id: 1,
-        config: precosLocal,
-        updated_at: new Date().toISOString()
-      });
+      await savePrecos(precosLocal);
       console.log('Preços migrados');
     }
 
-    localStorage.setItem('pietra_migrado_supabase', 'true');
+    localStorage.setItem('pietra_migrado_firebase', 'true');
     console.log('Migração concluída com sucesso!');
   } catch (error) {
     console.error('Erro durante migração:', error);
   }
 }
+
+// Alias de compatibilidade — nome antigo (Supabase) ainda é importado em useBudgets.js
+export const migrarLocalStorageParaSupabase = migrarLocalStorageParaFirebase;
 
 // ============ HELPERS localStorage (fallback) ============
 
@@ -330,11 +253,11 @@ function getFromLocalStorage(key, defaultValue) {
 function saveToLocalStorageArray(key, item) {
   try {
     const items = getFromLocalStorage(key, []);
-    const index = items.findIndex(i => i.id === item.id);
+    const index = items.findIndex((i) => i.id === item.id);
     if (index >= 0) {
       items[index] = item;
     } else {
-      const novoId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
+      const novoId = items.length > 0 ? Math.max(...items.map((i) => i.id)) + 1 : 1;
       item.id = novoId;
       items.push(item);
     }
@@ -348,7 +271,7 @@ function saveToLocalStorageArray(key, item) {
 function deleteFromLocalStorageArray(key, itemId) {
   try {
     const items = getFromLocalStorage(key, []);
-    const filtered = items.filter(i => i.id !== itemId);
+    const filtered = items.filter((i) => i.id !== itemId);
     localStorage.setItem(key, JSON.stringify(filtered));
     return true;
   } catch {
