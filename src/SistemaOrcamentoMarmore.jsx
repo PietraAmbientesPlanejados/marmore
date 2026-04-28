@@ -863,29 +863,30 @@ const SistemaOrcamentoMarmore = () => {
       return null;
     }
 
-    // Tentar posições em um grid de 10mm para performance
-    const incremento = 10;
+    // Incremento igual ao espaçamento garante que a posição exata com gap correto
+    // sempre seja testada — evita gaps maiores que o configurado.
+    const incremento = espacamento;
 
     for (let y = margem; y + alturaPeca + margem <= alturaChapa; y += incremento) {
       for (let x = margem; x + larguraPeca + margem <= larguraChapa; x += incremento) {
+        // AABB inflado pelo espaçamento — mesma lógica usada no canvas
         const sobrepoe = chapaDestino.pecas.some(p => {
           if (p.id === peca.id) return false;
 
           const larguraOutra = p.rotacao === 90 ? p.altura : p.largura;
           const alturaOutra = p.rotacao === 90 ? p.largura : p.altura;
 
-          const centroNovaX = x + larguraPeca / 2;
-          const centroNovaY = y + alturaPeca / 2;
-          const centroPecaX = p.posX + larguraOutra / 2;
-          const centroPecaY = p.posY + alturaOutra / 2;
+          const aMinX = p.posX - espacamento;
+          const aMaxX = p.posX + larguraOutra + espacamento;
+          const aMinY = p.posY - espacamento;
+          const aMaxY = p.posY + alturaOutra + espacamento;
 
-          const distanciaX = Math.abs(centroNovaX - centroPecaX);
-          const distanciaY = Math.abs(centroNovaY - centroPecaY);
-
-          const distanciaMinX = (larguraPeca + larguraOutra) / 2 + espacamento;
-          const distanciaMinY = (alturaPeca + alturaOutra) / 2 + espacamento;
-
-          return distanciaX < distanciaMinX && distanciaY < distanciaMinY;
+          return (
+            x < aMaxX &&
+            x + larguraPeca > aMinX &&
+            y < aMaxY &&
+            y + alturaPeca > aMinY
+          );
         });
 
         if (!sobrepoe) {
