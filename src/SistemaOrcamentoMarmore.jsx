@@ -2486,7 +2486,7 @@ const SistemaOrcamentoMarmore = () => {
                       />
                     </aside>
                   )}
-                  <div className="flex-1 min-w-0 grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+                  <div className="flex-1 min-w-0 grid grid-cols-1 gap-6 items-start">
                     {orcamentoAtual.chapas.map((chapa, idx) => (
                 <PlanoCorteChapa
                   key={chapa.id}
