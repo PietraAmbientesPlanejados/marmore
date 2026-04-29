@@ -17,7 +17,7 @@ export const PlanoCorteChapa = ({
   setModoEdicaoPeca,
   setPecaEditada,
   espessuraDisco = 4,
-  margemLaterais = 50,
+  margemLaterais = 25,
   onDragPreviewChange,
 }) => {
   const escala = 0.3;

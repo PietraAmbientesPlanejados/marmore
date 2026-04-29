@@ -44,12 +44,24 @@ const SistemaOrcamentoMarmore = () => {
   const [materialNovaChapa, setMaterialNovaChapa] = useState('');
   // Preview flutuante da peça durante drag entre chapas
   const [dragPreview, setDragPreview] = useState(null);
-  const [opcoesOtimizacao, setOpcoesOtimizacao] = useState({
-    tipoOtimizacao: 'aproveitamento', // 'aproveitamento' ou 'sequencial'
-    ordenacaoSequencial: 'maiores-menores', // 'maiores-menores' ou 'agrupamento-tamanho'
-    margemLaterais: 50, // margem das laterais da chapa em mm
-    espessuraDisco: 4 // espessura do disco de corte em mm (substitui o espacamento padrão)
-  });
+  const OPCOES_OTIMIZACAO_PADRAO = {
+    tipoOtimizacao: 'aproveitamento',
+    ordenacaoSequencial: 'maiores-menores',
+    margemLaterais: 25,
+    espessuraDisco: 4,
+  };
+
+  const [opcoesOtimizacao, setOpcoesOtimizacao] = useState(OPCOES_OTIMIZACAO_PADRAO);
+
+  // Atualiza as opções localmente E salva dentro do orçamento atual
+  const atualizarOpcoesOtimizacao = (novasOpcoes) => {
+    setOpcoesOtimizacao(novasOpcoes);
+    if (orcamentoAtual) {
+      const orcAtualizado = { ...orcamentoAtual, opcoesOtimizacao: novasOpcoes };
+      setOrcamentoAtual(orcAtualizado);
+      setOrcamentos(prev => prev.map(o => o.id === orcamentoAtual.id ? orcAtualizado : o));
+    }
+  };
 
   // Auto-save com debounce + retry + indicador visual de status
   const { status: saveStatus, ultimaGravacao, salvar: salvarAgora } = useAutoSave(orcamentoAtual);
@@ -1524,6 +1536,12 @@ const SistemaOrcamentoMarmore = () => {
                 if (orc) {
                   setOrcamentoAtual(orc);
                   setTela('orcamento');
+                  // Restaurar opções de otimização salvas no orçamento (se houver)
+                  if (orc.opcoesOtimizacao) {
+                    setOpcoesOtimizacao({ ...OPCOES_OTIMIZACAO_PADRAO, ...orc.opcoesOtimizacao });
+                  } else {
+                    setOpcoesOtimizacao(OPCOES_OTIMIZACAO_PADRAO);
+                  }
                 }
               }
             }}
@@ -2283,7 +2301,7 @@ const SistemaOrcamentoMarmore = () => {
                         name="tipoOtimizacao"
                         value="aproveitamento"
                         checked={opcoesOtimizacao.tipoOtimizacao === 'aproveitamento'}
-                        onChange={(e) => setOpcoesOtimizacao({ ...opcoesOtimizacao, tipoOtimizacao: e.target.value })}
+                        onChange={(e) => atualizarOpcoesOtimizacao({ ...opcoesOtimizacao, tipoOtimizacao: e.target.value })}
                         className="mt-1"
                       />
                       <div>
@@ -2298,7 +2316,7 @@ const SistemaOrcamentoMarmore = () => {
                         name="tipoOtimizacao"
                         value="sequencial"
                         checked={opcoesOtimizacao.tipoOtimizacao === 'sequencial'}
-                        onChange={(e) => setOpcoesOtimizacao({ ...opcoesOtimizacao, tipoOtimizacao: e.target.value })}
+                        onChange={(e) => atualizarOpcoesOtimizacao({ ...opcoesOtimizacao, tipoOtimizacao: e.target.value })}
                         className="mt-1"
                       />
                       <div className="flex-1">
@@ -2313,7 +2331,7 @@ const SistemaOrcamentoMarmore = () => {
                                 name="ordenacaoSequencial"
                                 value="maiores-menores"
                                 checked={opcoesOtimizacao.ordenacaoSequencial === 'maiores-menores'}
-                                onChange={(e) => setOpcoesOtimizacao({ ...opcoesOtimizacao, ordenacaoSequencial: e.target.value })}
+                                onChange={(e) => atualizarOpcoesOtimizacao({ ...opcoesOtimizacao, ordenacaoSequencial: e.target.value })}
                               />
                               <span className="text-slate-700">Das maiores para as menores</span>
                             </label>
@@ -2323,7 +2341,7 @@ const SistemaOrcamentoMarmore = () => {
                                 name="ordenacaoSequencial"
                                 value="agrupamento-tamanho"
                                 checked={opcoesOtimizacao.ordenacaoSequencial === 'agrupamento-tamanho'}
-                                onChange={(e) => setOpcoesOtimizacao({ ...opcoesOtimizacao, ordenacaoSequencial: e.target.value })}
+                                onChange={(e) => atualizarOpcoesOtimizacao({ ...opcoesOtimizacao, ordenacaoSequencial: e.target.value })}
                               />
                               <span className="text-slate-700">Agrupamento por mesmo tamanho</span>
                             </label>
@@ -2345,7 +2363,7 @@ const SistemaOrcamentoMarmore = () => {
                       min="0"
                       max="50"
                       value={opcoesOtimizacao.margemLaterais}
-                      onChange={(e) => setOpcoesOtimizacao({ ...opcoesOtimizacao, margemLaterais: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => atualizarOpcoesOtimizacao({ ...opcoesOtimizacao, margemLaterais: parseFloat(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                     />
                     <p className="text-xs text-slate-500 mt-1">Desconto das bordas da chapa</p>
@@ -2361,7 +2379,7 @@ const SistemaOrcamentoMarmore = () => {
                       max="20"
                       step="0.5"
                       value={opcoesOtimizacao.espessuraDisco}
-                      onChange={(e) => setOpcoesOtimizacao({ ...opcoesOtimizacao, espessuraDisco: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => atualizarOpcoesOtimizacao({ ...opcoesOtimizacao, espessuraDisco: parseFloat(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                     />
                     <p className="text-xs text-slate-500 mt-1">Espaçamento entre peças</p>

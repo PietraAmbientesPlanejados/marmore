@@ -25,7 +25,7 @@ export const PRECOS_PADRAO = {
 export const ESPACAMENTO_CHAPAS = 4;
 
 // Margem das bordas da chapa até a primeira peça (mm)
-export const MARGEM_CHAPAS = 50;
+export const MARGEM_CHAPAS = 25;
 
 // Configuração padrão de dimensões e preços de chapas
 export const CONFIG_CHAPA_PADRAO = {
